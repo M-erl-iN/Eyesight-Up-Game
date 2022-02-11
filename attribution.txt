@@ -1,0 +1,16 @@
+ comment:
+This project was created by Murakaev Erlan Ruslanovich,
+16 years old for school project and Yandex project 
+for the development of peripheral vision.
+ name:
+Eyesight Up Game
+ author:
+Murakaev Erlan Ruslanovich
+ date:
+01.01.2022
+ time:
+12.40
+ project version:
+6.0.0
+ development time:
+3 weeks

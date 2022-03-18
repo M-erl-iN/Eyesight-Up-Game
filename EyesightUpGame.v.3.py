@@ -4,9 +4,10 @@ import pygame
 from random import randrange, choice, sample
 from PIL import Image, ImageDraw, ImageFont
 import csv
+from os import remove
 from contextlib import suppress
 from win32api import GetSystemMetrics as size_
-from explosions import *
+from img.explosions import *
 
 
 class Figure(pygame.sprite.Sprite):
@@ -35,9 +36,9 @@ class Figure(pygame.sprite.Sprite):
             self.speedy = self.speeds_for_true_rotate[1]
         elif self.rect.bottom > self.board_sizes[1][1]:
             self.speedy = -self.speeds_for_true_rotate[1]
-        if self.rect.left < self.board_sizes[0][0]:
+        if self.rect.left < self.board_sizes[0][0] - self.rect.size[1]:
             self.speedx = self.speeds_for_true_rotate[0]
-        elif self.rect.right > self.board_sizes[0][1]:
+        elif self.rect.right > self.board_sizes[0][1] + self.rect.size[1]:
             self.speedx = -self.speeds_for_true_rotate[0]
 
 
@@ -46,7 +47,7 @@ class AnimatedFigure(Figure):
         if width == 0:
             width = (WIDTH_U, WIDTH_D)
         if height == 0:
-            height = (HEIGHT_U + main_but_sizes[9] + 5, HEIGHT_D - main_but_sizes[9] + 5)
+            height = (HEIGHT_U, HEIGHT_D)
         Figure.__init__(self, image, width, height)
         self.rot = 0
         self.rot_speed = rand_speed()
@@ -111,7 +112,7 @@ class SplitAnimatedFigure(AnimatedFigure):
 
 class Button(pygame.sprite.Sprite):
     def __init__(self, shablon_image, pos, bttext, btname, alpha, func, sizefont=54, x=30, tr=1, sz=30):
-        a = 'img/Standart/buttons/'
+        a = 'img/Style/buttons/'
         image0 = a + shablon_image
         image = a + btname
         draw_text(image0, bttext, sizefont, image, x, sz)
@@ -156,7 +157,7 @@ class ButtonMusicControl(Button):
 
 
 class InputBox:
-    def __init__(self, x, y, w, h, parameter, doz='0123main_but_sizes[9]6789', doz_len=2):
+    def __init__(self, x, y, w, h, parameter, doz='0123456789', doz_len=2):
         self.doz = doz
         self.doz_len = doz_len
         self.rect = pygame.Rect(x, y, w, h)
@@ -213,7 +214,7 @@ def draw_text(image, text, size, filename, x, sz):
 
     draw = ImageDraw.Draw(canvas)
     for i in range(len(text)):
-        draw.text((x, w + i * main_but_sizes[9]), text[i], 'white', font)
+        draw.text((x, w + i * main_but_sizes[9]), text[i], button_color1, font)
     canvas.save(filename, "PNG")
 
 
@@ -223,19 +224,6 @@ def set_coef_for_img(img_name):
     if x != size[0] or y != size[1]:
         img_converted = img.resize(ret_sizes(x, y))
         img_converted.save(img_name)
-
-
-def set_sizes_for_all_images():
-    imgs = ['img/BT_SLIDES.png',
-            'img/slides/sl1.png',
-            'img/slides/sl2.png',
-            'img/slides/sl3.png',
-            'img/slides/sl4.png',
-            'img/Standart/backgrounds/g3.png',
-            'img/Standart/backgrounds/g_a.png']
-    print(coefficients)
-    for i in imgs:
-        set_coef_for_img(i)
 
 
 def ret_sizes(x, y):
@@ -303,7 +291,7 @@ def main_menu():
     dont_rotated_sprites = []
     back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
     back_rect = back.get_rect()
-    exit_buttonQ = Button('BT_E.png', ex_size_, [''], 'BT_TEST.png', 161, lambda x: x, tr=0)
+    exit_buttonQ = Button('BT_E.png', ex_size_, [''], 'NewButton.png', 161, lambda x: x, tr=0)
     button_exit = pygame.sprite.Group()
     button_exit.add(exit_buttonQ)
     back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
@@ -325,13 +313,13 @@ def main_menu():
     tick = pygame.time.Clock()
     d = 'BS.png'
     buttons_spr = pygame.sprite.Group()
-    button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['     играть'], 'BT_TEST.png', alpha,
+    button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['     играть'], 'NewButton.png', alpha,
                      lambda: game())
-    button2 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]), ['    уровень'], 'BT_TEST.png',
+    button2 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]), ['    уровень'], 'NewButton.png',
                      alpha, lambda: level_settings())
-    button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'], 'BT_TEST.png',
+    button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'], 'NewButton.png',
                      alpha, lambda: training())
-    button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'], 'BT_TEST.png',
+    button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'], 'NewButton.png',
                      alpha, lambda: settings())
     mainbuttons = [button1, button2, button3, button4]
     for button in mainbuttons:
@@ -687,26 +675,26 @@ def level_settings():
     input_box9 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 2, main_but_sizes[9], main_but_sizes[8],
                           'коэффициент скорости', doz_len=3)
     input_box10 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 3, main_but_sizes[9], main_but_sizes[8],
-                           'ширина поля(max:1488)', doz_len=5)
+                           f'ширина поля(max:{str(size[0])})', doz_len=5)
     input_box11 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 4, main_but_sizes[9], main_but_sizes[8],
-                           'высота поля(max:8main_but_sizes[8])', doz_len=4)
+                           f'высота поля(max:{str(size[1])})', doz_len=4)
     input_boxes = [input_box4, input_box1, input_box2, input_box3, input_box5, input_box6,
                    input_box7, input_box8, input_box9, input_box10, input_box11]
     button = Button('BSe.png', (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
-                    ['сохранить'], 'BT_TEST.png', 161,
+                    ['сохранить'], 'NewButton.png', 161,
                     lambda: set_player_level(input_boxes), sz=17, sizefont=44)
-    button1 = Button('BSe.png', (20, main_but_sizes[7]), ['   3 из 10'], 'BT_TEST.png', 161,
+    button1 = Button('BSe.png', (20, main_but_sizes[7]), ['   3 из 10'], 'NewButton.png', 161,
                      lambda: set_level(easy_level, input_boxes), sz=17, sizefont=44)
-    button2 = Button('BSe.png', (20 + 300, main_but_sizes[7]), ['   5 из 10'], 'BT_TEST.png', 161,
+    button2 = Button('BSe.png', (20 + 300, main_but_sizes[7]), ['   5 из 10'], 'NewButton.png', 161,
                      lambda: set_level(normal_level, input_boxes), sz=17, sizefont=44)
-    button3 = Button('BSe.png', (20 + 300 * 2, main_but_sizes[7]), ['   7 из 10'], 'BT_TEST.png', 161,
+    button3 = Button('BSe.png', (20 + 300 * 2, main_but_sizes[7]), ['   7 из 10'], 'NewButton.png', 161,
                      lambda: set_level(medium_level, input_boxes), sz=17, sizefont=44)
-    button4 = Button('BSe.png', (20 + 300 * 3, main_but_sizes[7]), ['   9 из 10'], 'BT_TEST.png', 161,
+    button4 = Button('BSe.png', (20 + 300 * 3, main_but_sizes[7]), ['   9 из 10'], 'NewButton.png', 161,
                      lambda: set_level(hard_level, input_boxes), sz=17, sizefont=44)
-    button5 = Button('BSe.png', (20 + 300 * 4, main_but_sizes[7]), ['   11 из 10'], 'BT_TEST.png', 161,
+    button5 = Button('BSe.png', (20 + 300 * 4, main_but_sizes[7]), ['   11 из 10'], 'NewButton.png', 161,
                      lambda: set_level(demon_level, input_boxes), sz=17, sizefont=44)
     button6 = Button('BSe.png', (20 + 300 * 4, main_but_sizes[6] * 6 + main_but_sizes[9] + 5), ['     свой'],
-                     'BT_TEST.png', 161, lambda: set_level(player_level, input_boxes), sz=17, sizefont=44)
+                     'NewButton.png', 161, lambda: set_level(player_level, input_boxes), sz=17, sizefont=44)
     buttons_spr = pygame.sprite.Group()
     setting_buttons = [button, button1, button2, button3, button4, button5, button6]
     for button in setting_buttons:
@@ -735,8 +723,8 @@ def level_settings():
                     else:
                         button.target(0)
         with suppress(Exception):
-            if int(input_box10.text) > size[0]:
-                input_box10.text = str(size[0])
+            if int(input_box10.text) > size[0] - 100:
+                input_box10.text = str(size[0] - 100)
             if int(input_box11.text) > size[1]:
                 input_box11.text = str(size[1])
         buttons_spr.update()
@@ -761,6 +749,7 @@ def set_width_and_height(w, h):
 
 
 def set_w_h_butt(w, h):
+    h += 3
     exit_buttonQ.rect[0] = w
     exit_buttonQ.rect[1] = h
     exit_buttonQ.coords = [w, h, w + 47, h + 47]
@@ -806,19 +795,17 @@ def settings():
     tick = pygame.time.Clock()
     d = 'BS.png'
     buttons_spr = pygame.sprite.Group()
-    button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['      экран'], 'BT_TEST.png', alpha,
-                     lambda: set_sizes_for_all_images())
-    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 3), 'img/MusicControl/music_control_minus.png', alpha,
+    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 2), 'img/MusicControl/music_control_minus.png', alpha,
                                  lambda: minus_volume())
-    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 3), 'img/MusicControl/music_control_plus.png', alpha,
+    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 2), 'img/MusicControl/music_control_plus.png', alpha,
                                  lambda: plus_volume())
     button2 = pygame.sprite.Sprite()
-    draw_text('img/Standart/buttons/BS.png', ['      звук'], 54, 'img/Standart/buttons/BT_TEST.png', 30, 30)
-    button2.image = pygame.image.load('img/Standart/buttons/BT_TEST.png').convert_alpha()
+    draw_text('img/Style/buttons/BS.png', ['      звук'], 54, 'img/Style/buttons/NewButton.png', 30, 30)
+    button2.image = pygame.image.load('img/Style/buttons/NewButton.png').convert_alpha()
     button2.rect = button2.image.get_rect()
-    button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
+    button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3] - main_but_sizes[6]
     button2_ = pygame.sprite.Group(button2)
-    main_settings_buttons = [button1, button3, button4]
+    main_settings_buttons = [button3, button4]
     for button in main_settings_buttons:
         buttons_spr.add(button)
     while running:
@@ -900,10 +887,10 @@ animated_spr_list, split_sprites1_list, split_sprites2_list, rotating_sprites = 
 dont_rotated_images = ['ball2.png']
 dont_rotated_sprites = []
 gamerun_sprites = pygame.sprite.Group()
-bt_dir = 'img/Standart/buttons/'
-bg_dir = 'img/Standart/backgrounds/'
-fg_dir = 'img/Standart/figures/'
-put = '/Standart'
+bt_dir = 'img/Style/buttons/'
+bg_dir = 'img/Style/backgrounds/'
+fg_dir = 'img/Style/figures/'
+put = '/Style'
 pygame.init()
 pygame.mixer.init()
 click_sound = pygame.mixer.Sound("sounds/click.ogg")
@@ -943,8 +930,8 @@ normal = 2
 medium = 3
 hard = 4
 demon = 5
-COLOR_ACTIVE = pygame.Color((255, 255, 255))
-COLOR_INACTIVE = pygame.Color((195, 195, 195))
+COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
+COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
 FONT2 = pygame.font.Font('pixel_font.ttf', main_but_sizes[8])
 global_timer = 0
 easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
@@ -955,7 +942,7 @@ demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1486, 864))
 global_level = level
 restart = False
 music_image = pygame.image.load('img/MusicControl/music_control_count_image.png').convert_alpha()
-exit_buttonQ = ButtonMusicControl((1481, 5), 'img' + put + '/buttons/BT_E.png', 161, lambda x: x)
+exit_buttonQ = ButtonMusicControl((ret_sizes(1481, 5)), 'img/Style/buttons/BT_E.png', 161, lambda x: x)
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
 errors_col_sprs = pygame.sprite.Group()
@@ -979,3 +966,4 @@ with open('level.csv', 'w', newline='', encoding='utf8') as csvfile:
         csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     writer.writerow([*global_level])
     writer.writerow([*player_level, volume, global_speed, global_speed_koef])
+remove("""img/Style/buttons/NewButton.png""")

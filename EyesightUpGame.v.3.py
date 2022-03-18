@@ -36,9 +36,9 @@ class Figure(pygame.sprite.Sprite):
             self.speedy = self.speeds_for_true_rotate[1]
         elif self.rect.bottom > self.board_sizes[1][1]:
             self.speedy = -self.speeds_for_true_rotate[1]
-        if self.rect.left < self.board_sizes[0][0] - self.rect.size[1]:
+        if self.rect.left < self.board_sizes[0][0]:
             self.speedx = self.speeds_for_true_rotate[0]
-        elif self.rect.right > self.board_sizes[0][1] + self.rect.size[1]:
+        elif self.rect.right > self.board_sizes[0][1]:
             self.speedx = -self.speeds_for_true_rotate[0]
 
 
@@ -443,14 +443,14 @@ def finish_game(false):
             elif true_clicks == true:
                 gamerun_sprites.draw(screen)
                 for i in list(gamerun_sprites):
-                    pygame.draw.rect(screen, GREEN, i.rect, 2)
+                    pygame.draw.rect(screen, RECT_COLOR, i.rect, 2)
                 pygame.display.flip()
                 time.sleep(0.25)
                 game_sound.stop()
                 win_sound.play()
                 break
         for i in list(gamerun_sprites):
-            pygame.draw.rect(screen, GREEN, i.rect, 2)
+            pygame.draw.rect(screen, RECT_COLOR, i.rect, 2)
         button_exit.draw(screen)
         gamerun_sprites.draw(screen)
         errors_col_sprs.draw(screen)
@@ -540,7 +540,7 @@ def game():
                 gamerun_sprites.update()
                 screen.blit(back, back_rect)
                 for i in list(gamerun_sprites):
-                    pygame.draw.rect(screen, GREEN, i.rect, 2)
+                    pygame.draw.rect(screen, RECT_COLOR, i.rect, 2)
                 gamerun_sprites.draw(screen)
                 errors_col_sprs.draw(screen)
                 for i in range(len(animated_spr_list)):
@@ -795,9 +795,9 @@ def settings():
     tick = pygame.time.Clock()
     d = 'BS.png'
     buttons_spr = pygame.sprite.Group()
-    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 2), 'img/MusicControl/music_control_minus.png', alpha,
+    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 2), 'img/Style/MusicControl/music_control_minus.png', alpha,
                                  lambda: minus_volume())
-    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 2), 'img/MusicControl/music_control_plus.png', alpha,
+    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 2), 'img/Style/MusicControl/music_control_plus.png', alpha,
                                  lambda: plus_volume())
     button2 = pygame.sprite.Sprite()
     draw_text('img/Style/buttons/BS.png', ['      звук'], 54, 'img/Style/buttons/NewButton.png', 30, 30)
@@ -847,20 +847,21 @@ def set_style():
     decorations = pygame.sprite.Group()
     for i in range(2):
         decorations.add(set_speed_for_decoration_object(Figure(pygame.image.load(fg_dir + '/ball2.png').convert_alpha(),
-                                                               (15, size[0] - 15), (15, size[1] - 15))))
+                                                               (0, size[0]), (0, size[1]))))
     animated_figures_names = ['/FS_2_2.png', '/FS_2.png', '/FT4.png', '/prime_image_B.png', '/FT3.png', '/FT2.png']
     for i in range(5):
         for j in range(2):
             decorations.add(set_speed_for_decoration_object(
                 AnimatedFigure(pygame.image.load(fg_dir + animated_figures_names[i]).convert_alpha(),
-                               (15, size[0] - 15), (15, size[1] - 15))))
+                               (0, size[0]), (0, size[1]))))
     if not randrange(25):
         decorations.add(set_speed_for_decoration_object(AnimatedFigure(
-            pygame.image.load(fg_dir + '/FT_SPECIAL.png').convert_alpha(), (15, size[0] - 15), (15, size[1] - 15))))
+            pygame.image.load(fg_dir + '/FT_SPECIAL.png').convert_alpha(), (0, size[0]), (0, size[1]))))
     energy_image = pygame.image.load(fg_dir + '/score_chunk1.png').convert_alpha()
     for i in range(5):
-        decorations.add(set_speed_for_decoration_object(AnimatedFigure(energy_image, (15, size[0] - 15),
-                                                                       (15, size[1] - 15))))
+        decorations.add(set_speed_for_decoration_object(AnimatedFigure(energy_image, (0, size[0]),
+                                                                       (0, size[1]))))
+    pass
 
 
 volume = 0
@@ -878,7 +879,6 @@ with open('level.csv', encoding="utf8") as csvfile:
             global_speed = int(q[-2])
             global_speed_koef = int(q[-1])
 buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, speed, BLACK = [], 0, 0, 0, 0, 60, 6, (0, 0, 0)
-GREEN = (0, 255, 0)
 speed_koef = 1
 rotating_images = ['FT4.png']
 sc_im = 'score_chunk1.png'
@@ -915,10 +915,6 @@ ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Eyesight Up Game")
 pygame.display.set_icon(pygame.image.load('icon/active_exe_icon.png').convert_alpha())
-size_old = [int(i) for i in open('sizes.s', 'r', encoding='utf8').read().split('.')]
-if size_old != size:
-    set_sizes_for_all_images()
-    open('sizes.s', 'w', encoding='utf8').write(str(size[0]) + '.' + str(size[1]))
 clock = pygame.time.Clock()
 set_style()
 back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
@@ -937,11 +933,11 @@ global_timer = 0
 easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
 normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
 medium_level = (3, 3, 3, 3, 3, 2, 20, 2, 2, *ret_sizes(700, 720))
-hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1486, 864))
-demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1486, 864))
+hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1536, 864))
+demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1536, 864))
 global_level = level
 restart = False
-music_image = pygame.image.load('img/MusicControl/music_control_count_image.png').convert_alpha()
+music_image = pygame.image.load('img/music_control_count_image.png').convert_alpha()
 exit_buttonQ = ButtonMusicControl((ret_sizes(1481, 5)), 'img/Style/buttons/BT_E.png', 161, lambda x: x)
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
@@ -960,7 +956,9 @@ for i in range(255, 0, -3):
     screen.fill(BLACK)
     screen.blit(backanimated, back_rect)
     pygame.display.flip()
-main_menu()
+while main_run:
+    with suppress(Exception):
+        main_menu()
 with open('level.csv', 'w', newline='', encoding='utf8') as csvfile:
     writer = csv.writer(
         csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)

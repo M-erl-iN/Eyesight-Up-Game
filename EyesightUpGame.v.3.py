@@ -8,6 +8,7 @@ from os import remove
 from contextlib import suppress
 from win32api import GetSystemMetrics as size_
 from img.explosions import *
+from webbrowser import open as open_site
 
 
 class Figure(pygame.sprite.Sprite):
@@ -283,7 +284,7 @@ def in_coords(rect, x, y):
 
 
 def main_menu():
-    global back, back_rect, exit_buttonQ, button_exit, back1, split_sprites1_list, split_sprites2_list,\
+    global back, back_rect, exit_buttonQ, button_exit, back1, split_sprites1_list, split_sprites2_list, \
         rotating_sprites, dont_rotated_sprites, decorations
     split_sprites2_list = []
     split_sprites1_list = []
@@ -317,9 +318,11 @@ def main_menu():
                      lambda: game())
     button2 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]), ['    уровень'], 'NewButton.png',
                      alpha, lambda: level_settings())
-    button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'], 'NewButton.png',
+    button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'],
+                     'NewButton.png',
                      alpha, lambda: training())
-    button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'], 'NewButton.png',
+    button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'],
+                     'NewButton.png',
                      alpha, lambda: settings())
     mainbuttons = [button1, button2, button3, button4]
     for button in mainbuttons:
@@ -458,12 +461,12 @@ def finish_game(false):
 
 
 def game():
-    global gamerun_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprs,\
+    global gamerun_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprs, \
         game_sound, global_level, global_speed_koef, volume, global_timer, global_speed
     gamerun_sprites, animated_spr_list = pygame.sprite.Group(), []
     errors_col_sprs = pygame.sprite.Group()
-    difficulty, dont_rot_col, rot_col, spl_rot_col, prime_col, scale, global_timer,\
-        global_speed, global_speed_koef, w, h = global_level
+    difficulty, dont_rot_col, rot_col, spl_rot_col, prime_col, scale, global_timer, \
+    global_speed, global_speed_koef, w, h = global_level
     set_width_and_height(w, h)
     set_w_h_butt(WIDTH_D - 6, HEIGHT_U)
     error_image = pygame.image.load(fg_dir + sc_im).convert_alpha()
@@ -672,11 +675,14 @@ def level_settings():
     input_box7 = InputBox(main_but_sizes[6] * 6, 100, main_but_sizes[9], main_but_sizes[8], 'время раунда', doz_len=3)
     input_box8 = InputBox(main_but_sizes[6] * 6, 100 + main_but_sizes[9] + 5, main_but_sizes[9], main_but_sizes[8],
                           'скорость', doz_len=3)
-    input_box9 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 2, main_but_sizes[9], main_but_sizes[8],
+    input_box9 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 2, main_but_sizes[9],
+                          main_but_sizes[8],
                           'коэффициент скорости', doz_len=3)
-    input_box10 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 3, main_but_sizes[9], main_but_sizes[8],
+    input_box10 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 3, main_but_sizes[9],
+                           main_but_sizes[8],
                            f'ширина поля(max:{str(size[0])})', doz_len=5)
-    input_box11 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 4, main_but_sizes[9], main_but_sizes[8],
+    input_box11 = InputBox(main_but_sizes[6] * 6, 100 + (main_but_sizes[9] + 5) * 4, main_but_sizes[9],
+                           main_but_sizes[8],
                            f'высота поля(max:{str(size[1])})', doz_len=4)
     input_boxes = [input_box4, input_box1, input_box2, input_box3, input_box5, input_box6,
                    input_box7, input_box8, input_box9, input_box10, input_box11]
@@ -788,6 +794,10 @@ def minus_volume():
         help_volume()
 
 
+def import_style():
+    open_site('https://sites.google.com/view/eyesight-up-game', new=0)
+
+
 def settings():
     global music_volume_sprites, decorations
     alpha = 161
@@ -795,17 +805,19 @@ def settings():
     tick = pygame.time.Clock()
     d = 'BS.png'
     buttons_spr = pygame.sprite.Group()
-    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 2), 'img/Style/MusicControl/music_control_minus.png', alpha,
-                                 lambda: minus_volume())
-    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 2), 'img/Style/MusicControl/music_control_plus.png', alpha,
-                                 lambda: plus_volume())
+    button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['      стиль'], 'BT_TEST.png',
+                     alpha, lambda: import_style())
+    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 3),
+                                 'img/Style/MusicControl/music_control_minus.png', alpha, lambda: minus_volume())
+    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 3),
+                                 'img/Style/MusicControl/music_control_plus.png', alpha, lambda: plus_volume())
     button2 = pygame.sprite.Sprite()
     draw_text('img/Style/buttons/BS.png', ['      звук'], 54, 'img/Style/buttons/NewButton.png', 30, 30)
     button2.image = pygame.image.load('img/Style/buttons/NewButton.png').convert_alpha()
     button2.rect = button2.image.get_rect()
-    button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3] - main_but_sizes[6]
+    button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
     button2_ = pygame.sprite.Group(button2)
-    main_settings_buttons = [button3, button4]
+    main_settings_buttons = [button3, button4, button1]
     for button in main_settings_buttons:
         buttons_spr.add(button)
     while running:

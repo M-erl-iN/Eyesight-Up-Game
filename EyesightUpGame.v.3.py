@@ -4,7 +4,7 @@ import pygame
 from random import randrange, choice, sample
 from PIL import Image, ImageDraw, ImageFont
 import csv
-from os import remove
+from os import remove, listdir
 from contextlib import suppress
 from win32api import GetSystemMetrics as size_
 from img.explosions import *
@@ -580,14 +580,13 @@ def game():
 
 
 def training():
-    global backslide
     alpha = 161
     running = True
     tick = pygame.time.Clock()
     buttons_spr = pygame.sprite.Group()
-    backslide = pygame.image.load("img/slides/sl1.png").convert_alpha()
     button1 = Button('BT_E.png', (2, 2), [''], 'BT_E.png', alpha,
                      lambda: slide_show())
+    slide_show()
     image = pygame.image.load('img/BT_SLIDES.png').convert_alpha()
     image.set_colorkey(BLACK)
     button1.image_orig = image
@@ -610,23 +609,14 @@ def training():
                 else:
                     button1.target(0)
         buttons_spr.update()
-        screen.blit(backslide, back_rectslide)
+        screen.blit(slide, back_rectslide)
         buttons_spr.draw(screen)
         pygame.display.flip()
 
 
 def slide_show():
-    global back_ind, backslide
-    if back_ind == 0:
-        backslide = pygame.image.load("img/slides/sl2.png").convert_alpha()
-        back_ind += 1
-    elif back_ind == 1:
-        backslide = pygame.image.load("img/slides/sl3.png").convert_alpha()
-        back_ind += 1
-    elif back_ind == 2:
-        backslide = pygame.image.load("img/slides/sl4.png").convert_alpha()
-        back_ind += 1
-    elif back_ind == 3:
+    global back_ind, slide
+    if back_ind == len(slides_list) - 1:
         global global_speed, global_speed_koef, global_level
         global_speed = 2
         global_speed_koef = 2
@@ -634,8 +624,12 @@ def slide_show():
         global_level = (1, 2, 2, 0, 1, 40, 10, 2, 2, *ret_sizes(480, 600))
         game()
         global_level = gl1
-        back_ind = 0
+        back_ind = -1
         raise ZeroDivisionError
+    else:
+        back_ind += 1
+        print(back_ind, slides_list[back_ind])
+        slide = pygame.image.load(slides_list[back_ind]).convert_alpha()
 
 
 def set_level(level_for_set, boxes):
@@ -953,14 +947,15 @@ music_image = pygame.image.load('img/music_control_count_image.png').convert_alp
 exit_buttonQ = ButtonMusicControl((ret_sizes(1481, 5)), 'img/Style/buttons/BT_E.png', 161, lambda x: x)
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
+slides_list = [f"img/slides/{i}" for i in listdir("img/slides")]
+slide = None
+back_ind = -1
+back_rectslide = back_rect
 errors_col_sprs = pygame.sprite.Group()
 music_volume_sprites = pygame.sprite.Group()
 help_volume()
 start_sound.play()
 back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
-backslide = pygame.image.load("img/slides/sl1.png").convert_alpha()
-back_rectslide = back_rect
-back_ind = 0
 main_run = True
 for i in range(255, 0, -3):
     backanimated = back1.copy()
@@ -971,6 +966,7 @@ for i in range(255, 0, -3):
 while main_run:
     with suppress(Exception):
         main_menu()
+"""main_menu()"""
 with open('level.csv', 'w', newline='', encoding='utf8') as csvfile:
     writer = csv.writer(
         csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)

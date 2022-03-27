@@ -628,7 +628,6 @@ def slide_show():
         raise ZeroDivisionError
     else:
         back_ind += 1
-        print(back_ind, slides_list[back_ind])
         slide = pygame.image.load(slides_list[back_ind]).convert_alpha()
 
 

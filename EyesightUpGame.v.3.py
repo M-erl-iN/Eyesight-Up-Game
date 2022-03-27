@@ -468,7 +468,7 @@ def game():
     difficulty, dont_rot_col, rot_col, spl_rot_col, prime_col, scale, global_timer, \
     global_speed, global_speed_koef, w, h = global_level
     set_width_and_height(w, h)
-    set_w_h_butt(WIDTH_D - 6, HEIGHT_U)
+    set_w_h_butt(WIDTH_D - 6, HEIGHT_U - 50)
     error_image = pygame.image.load(fg_dir + sc_im).convert_alpha()
     scalefor = scale
     scalej = scalefor // 20 + 1
@@ -724,8 +724,8 @@ def level_settings():
         with suppress(Exception):
             if int(input_box10.text) > size[0] - 100:
                 input_box10.text = str(size[0] - 100)
-            if int(input_box11.text) > size[1]:
-                input_box11.text = str(size[1])
+            if int(input_box11.text) > size[1] - 100:
+                input_box11.text = str(size[1] - 100)
         buttons_spr.update()
         button_exit.update()
         decorations.update()
@@ -938,8 +938,8 @@ global_timer = 0
 easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
 normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
 medium_level = (3, 3, 3, 3, 3, 2, 20, 2, 2, *ret_sizes(700, 720))
-hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1536, 864))
-demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1536, 864))
+hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
+demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
 global_level = level
 restart = False
 music_image = pygame.image.load('img/music_control_count_image.png').convert_alpha()

@@ -112,33 +112,64 @@ class SplitAnimatedFigure(AnimatedFigure):
 
 
 class Button(pygame.sprite.Sprite):
-    def __init__(self, shablon_image, pos, bttext, btname, alpha, func, sizefont=54, x=30, tr=1, sz=30):
+    def __init__(self, shablon_image, pos, bttext, btname, alpha, func, sizefont=54, x=30, tr=1, sz=30, animate_ind=0, animation_delay=0):
+        self.animate_ind = animate_ind
+        self.animation_delay = animation_delay
         a = 'img/Style/buttons/'
         image0 = a + shablon_image
         image = a + btname
         draw_text(image0, bttext, sizefont, image, x, sz)
         pygame.sprite.Sprite.__init__(self)
         d = pygame.image.load(image).convert_alpha()
+        self.current_animation_step = 0
+        self.route = 1
+        self.route_animate = 1
+        self.animation_time = 1 * 6
+        self.current_animation_time = 0
         self.image_orig = d
         self.alpha = alpha
         self.func = func
-        size = self.image_orig.get_rect()
-        self.coords = (*pos, pos[0] + size[2], pos[1] + size[3])
         self.image = self.image_orig.copy()
         self.rect = self.image.get_rect()
+        self.rect.x += 4
+        self.rect.y += 4
+        self.rect.width -= 8
+        self.rect.height -= 8
         self.rect.x = pos[0]
         self.rect.y = pos[1]
+        self.was_targeted = 0
         self.tr = tr
 
     def target(self, i=2):
         self.image.set_alpha(self.alpha + (255 - self.alpha) // 3 * (3 - i))
-        if self.tr:
-            self.rect[0] = self.coords[0] + i * 2
-            self.rect[1] = self.coords[1] + i * 2
+        if i == 2 and not self.was_targeted:
+            self.rect.x += 4
+            self.rect.y += 4
+            self.was_targeted = 1
+        elif i == 0 and self.was_targeted:
+            self.rect.x -= 4
+            self.rect.y -= 4
+            self.was_targeted = 0
 
     def clicked(self):
         click_sound.play()
         self.func()
+
+    def update(self):
+        if self.animation_delay:
+            if self.animate_ind == 0:
+                self.current_animation_time += 1
+                if self.current_animation_time == self.animation_time:
+                    if self.current_animation_step == steps_count - 1:
+                        self.route = -1
+                    elif self.current_animation_step == 0:
+                        self.route = 1
+                        self.route_animate *= -1
+                    self.current_animation_step += self.route
+                    self.rect.y += animation_steps[self.current_animation_step] * self.route_animate
+                    self.current_animation_time = 0
+            else:
+                self.animate_ind -= 1
 
 
 class ButtonMusicControl(Button):
@@ -148,8 +179,6 @@ class ButtonMusicControl(Button):
         self.image_orig = d
         self.alpha = alpha
         self.func = func
-        size = self.image_orig.get_rect()
-        self.coords = (*pos, pos[0] + size[2], pos[1] + size[3])
         self.image = self.image_orig.copy()
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
@@ -262,15 +291,15 @@ def event_test_exit(event):
         set_w_h_butt(*ex_size_)
         return False
     if event.type == pygame.MOUSEBUTTONDOWN:
-        if in_coords(exit_buttonQ.coords, *event.pos):
+        if in_coords_rect(exit_buttonQ.rect, *event.pos):
             click_sound.play()
             set_w_h_butt(*ex_size_)
             return False
     if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEMOTION:
-        if in_coords(exit_buttonQ.coords, *event.pos):
+        if in_coords_rect(exit_buttonQ.rect, *event.pos):
             exit_buttonQ.target()
     if event.type == pygame.MOUSEMOTION:
-        if in_coords(exit_buttonQ.coords, *event.pos):
+        if in_coords_rect(exit_buttonQ.rect, *event.pos):
             exit_buttonQ.target()
         else:
             exit_buttonQ.target(0)
@@ -279,6 +308,12 @@ def event_test_exit(event):
 
 def in_coords(rect, x, y):
     if rect[0] < x < rect[2] and rect[1] < y < rect[3]:
+        return 1
+    return 0
+
+
+def in_coords_rect(rect, x, y):
+    if rect.x < x < rect.x + rect.width and rect.y < y < rect.y + rect.height:
         return 1
     return 0
 
@@ -315,15 +350,15 @@ def main_menu():
     d = 'BS.png'
     buttons_spr = pygame.sprite.Group()
     button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['     играть'], 'NewButton.png', alpha,
-                     lambda: game())
+                     lambda: game(), animation_delay=1)
     button2 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]), ['    уровень'], 'NewButton.png',
-                     alpha, lambda: level_settings())
+                     alpha, lambda: level_settings(), animate_ind=6, animation_delay=1)
     button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'],
                      'NewButton.png',
-                     alpha, lambda: training())
+                     alpha, lambda: training(), animate_ind=12, animation_delay=1)
     button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'],
                      'NewButton.png',
-                     alpha, lambda: settings())
+                     alpha, lambda: settings(), animate_ind=18, animation_delay=1)
     mainbuttons = [button1, button2, button3, button4]
     for button in mainbuttons:
         buttons_spr.add(button)
@@ -337,18 +372,18 @@ def main_menu():
                 return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for button in mainbuttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.clicked()
             if event.type == pygame.MOUSEBUTTONUP:
                 for button in mainbuttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.target()
-            if event.type == pygame.MOUSEMOTION:
-                for button in mainbuttons:
-                    if in_coords(button.coords, *event.pos):
-                        button.target()
-                    else:
-                        button.target(0)
+        mouse_pos = pygame.mouse.get_pos()
+        for button in mainbuttons:
+            if in_coords_rect(button.rect, *mouse_pos):
+                button.target()
+            else:
+                button.target(0)
         buttons_spr.update()
         button_exit.update()
         decorations.update()
@@ -598,13 +633,13 @@ def training():
             if event.type == pygame.QUIT:
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if in_coords(button1.coords, *event.pos):
+                if in_coords_rect(button1.rect, *event.pos):
                     button1.clicked()
             if event.type == pygame.MOUSEBUTTONUP:
-                if in_coords(button1.coords, *event.pos):
+                if in_coords_rect(button1.rect, *event.pos):
                     button1.target()
             if event.type == pygame.MOUSEMOTION:
-                if in_coords(button1.coords, *event.pos):
+                if in_coords_rect(button1.rect, *event.pos):
                     button1.target()
                 else:
                     button1.target(0)
@@ -709,15 +744,15 @@ def level_settings():
                 return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for button in setting_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.clicked()
             if event.type == pygame.MOUSEBUTTONUP:
                 for button in setting_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.target()
             if event.type == pygame.MOUSEMOTION:
                 for button in setting_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.target()
                     else:
                         button.target(0)
@@ -751,7 +786,6 @@ def set_w_h_butt(w, h):
     h += 3
     exit_buttonQ.rect[0] = w
     exit_buttonQ.rect[1] = h
-    exit_buttonQ.coords = [w, h, w + 47, h + 47]
 
 
 def set_volume():
@@ -821,15 +855,15 @@ def settings():
                 return
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for button in main_settings_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.clicked()
             if event.type == pygame.MOUSEBUTTONUP:
                 for button in main_settings_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.target()
             if event.type == pygame.MOUSEMOTION:
                 for button in main_settings_buttons:
-                    if in_coords(button.coords, *event.pos):
+                    if in_coords_rect(button.rect, *event.pos):
                         button.target()
                     else:
                         button.target(0)
@@ -883,8 +917,10 @@ with open('level.csv', encoding="utf8") as csvfile:
             volume = float(q[-3])
             global_speed = int(q[-2])
             global_speed_koef = int(q[-1])
+
 buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, speed, BLACK = [], 0, 0, 0, 0, 60, 6, (0, 0, 0)
 speed_koef = 1
+
 rotating_images = ['FT4.png']
 sc_im = 'score_chunk1.png'
 split_double_sprites = ['FT2.png', 'FT3.png', 'FS_2.png', 'FS_2_2.png']
@@ -892,12 +928,15 @@ animated_spr_list, split_sprites1_list, split_sprites2_list, rotating_sprites = 
 dont_rotated_images = ['ball2.png']
 dont_rotated_sprites = []
 gamerun_sprites = pygame.sprite.Group()
+
 bt_dir = 'img/Style/buttons/'
 bg_dir = 'img/Style/backgrounds/'
 fg_dir = 'img/Style/figures/'
 put = '/Style'
+
 pygame.init()
 pygame.mixer.init()
+
 click_sound = pygame.mixer.Sound("sounds/click.ogg")
 start_sound = pygame.mixer.Sound("sounds/start_game.ogg")
 start_sound.set_volume(0.7)
@@ -909,6 +948,7 @@ fon_sound = pygame.mixer.Sound("sounds/fon.ogg")
 game_sound = pygame.mixer.Sound("sounds/GS2.ogg")
 game_sound_list = ("sounds/GS1.ogg", "sounds/GS2.ogg", "sounds/GS3.ogg")
 sounds = (click_sound, start_sound, win_sound, lose_sound, false_sound, true_sound, fon_sound, game_sound)
+
 decorations = pygame.sprite.Group()
 set_volume()
 FONT = pygame.font.Font('pixel_font.ttf', 32)
@@ -956,6 +996,10 @@ help_volume()
 start_sound.play()
 back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
 main_run = True
+
+animation_steps = (0, 1, 1, 1, 2, 3, 4)
+steps_count = len(animation_steps)
+
 for i in range(255, 0, -3):
     backanimated = back1.copy()
     backanimated.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
@@ -965,7 +1009,6 @@ for i in range(255, 0, -3):
 while main_run:
     with suppress(Exception):
         main_menu()
-"""main_menu()"""
 with open('level.csv', 'w', newline='', encoding='utf8') as csvfile:
     writer = csv.writer(
         csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)

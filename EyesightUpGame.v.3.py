@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 import csv
 from os import remove, listdir
 from contextlib import suppress
-from win32api import GetSystemMetrics as size_
+from win32api import GetSystemMetrics
 from img.explosions import *
 from webbrowser import open as open_site
 
@@ -112,7 +112,8 @@ class SplitAnimatedFigure(AnimatedFigure):
 
 
 class Button(pygame.sprite.Sprite):
-    def __init__(self, shablon_image, pos, bttext, btname, alpha, func, sizefont=54, x=30, tr=1, sz=30, animate_ind=0, animation_delay=0):
+    def __init__(self, shablon_image, pos, bttext, btname, alpha, func, sizefont=54, x=30, tr=1, sz=30, animate_ind=0,
+                 animation_delay=0):
         self.animate_ind = animate_ind
         self.animation_delay = animation_delay
         a = 'img/Style/buttons/'
@@ -121,7 +122,7 @@ class Button(pygame.sprite.Sprite):
         draw_text(image0, bttext, sizefont, image, x, sz)
         pygame.sprite.Sprite.__init__(self)
         d = pygame.image.load(image).convert_alpha()
-        self.current_animation_step = 0
+        self.current_animation_step = 1
         self.route = 1
         self.route_animate = 1
         self.animation_time = 1 * 6
@@ -139,16 +140,14 @@ class Button(pygame.sprite.Sprite):
         self.rect.y = pos[1]
         self.was_targeted = 0
         self.tr = tr
+        self.target_step = 0
+        self.stroke_delay = 0
 
     def target(self, i=2):
         self.image.set_alpha(self.alpha + (255 - self.alpha) // 3 * (3 - i))
         if i == 2 and not self.was_targeted:
-            self.rect.x += 4
-            self.rect.y += 4
             self.was_targeted = 1
         elif i == 0 and self.was_targeted:
-            self.rect.x -= 4
-            self.rect.y -= 4
             self.was_targeted = 0
 
     def clicked(self):
@@ -159,17 +158,34 @@ class Button(pygame.sprite.Sprite):
         if self.animation_delay:
             if self.animate_ind == 0:
                 self.current_animation_time += 1
-                if self.current_animation_time == self.animation_time:
+                if self.current_animation_time >= self.animation_time / animation_steps[self.current_animation_step]:
                     if self.current_animation_step == steps_count - 1:
                         self.route = -1
-                    elif self.current_animation_step == 0:
+                    elif self.current_animation_step == 1:
                         self.route = 1
                         self.route_animate *= -1
-                    self.current_animation_step += self.route
-                    self.rect.y += animation_steps[self.current_animation_step] * self.route_animate
+                    self.rect.y += self.route_animate
                     self.current_animation_time = 0
+                    self.current_animation_step += self.route
             else:
                 self.animate_ind -= 1
+        self.step_targets()
+
+    def step_targets(self):
+        if self.stroke_delay:
+            self.stroke_delay = 0
+            if self.was_targeted:
+                if self.target_step < 8:
+                    self.target_step += 1
+                    self.rect.x += 1
+                    self.rect.y += 1
+            else:
+                if self.target_step > 0:
+                    self.target_step -= 1
+                    self.rect.x -= 1
+                    self.rect.y -= 1
+        else:
+            self.stroke_delay = 1
 
 
 class ButtonMusicControl(Button):
@@ -184,6 +200,10 @@ class ButtonMusicControl(Button):
         self.rect.x = pos[0]
         self.rect.y = pos[1]
         self.tr = tr
+        self.was_targeted = 0
+
+    def update(self):
+        pygame.sprite.Sprite.update(self)
 
 
 class InputBox:
@@ -232,14 +252,14 @@ class InputBox:
         pygame.draw.rect(ekran, self.color, self.rect2, 2)
 
 
-def draw_text(image, text, size, filename, x, sz):
+def draw_text(image, text, fontsize, filename, x, sz):
     """накладывает text с размером шрифта size
      на изображение кнопки и сохраняет как filename"""
     if len(text) == 1:
         w = sz
     else:
         w = 5
-    font = ImageFont.truetype("pixel_font.ttf", size, encoding="unic")
+    font = ImageFont.truetype("pixel_font.ttf", fontsize, encoding="unic")
     canvas = Image.open(image)
 
     draw = ImageDraw.Draw(canvas)
@@ -352,13 +372,13 @@ def main_menu():
     button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['     играть'], 'NewButton.png', alpha,
                      lambda: game(), animation_delay=1)
     button2 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]), ['    уровень'], 'NewButton.png',
-                     alpha, lambda: level_settings(), animate_ind=6, animation_delay=1)
+                     alpha, lambda: level_settings(), animate_ind=8, animation_delay=1)
     button3 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2), ['   обучение'],
                      'NewButton.png',
-                     alpha, lambda: training(), animate_ind=12, animation_delay=1)
+                     alpha, lambda: training(), animate_ind=16, animation_delay=1)
     button4 = Button(d, (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3), ['  настройки'],
                      'NewButton.png',
-                     alpha, lambda: settings(), animate_ind=18, animation_delay=1)
+                     alpha, lambda: settings(), animate_ind=24, animation_delay=1)
     mainbuttons = [button1, button2, button3, button4]
     for button in mainbuttons:
         buttons_spr.add(button)
@@ -500,8 +520,8 @@ def game():
         game_sound, global_level, global_speed_koef, volume, global_timer, global_speed
     gamerun_sprites, animated_spr_list = pygame.sprite.Group(), []
     errors_col_sprs = pygame.sprite.Group()
-    difficulty, dont_rot_col, rot_col, spl_rot_col, prime_col, scale, global_timer, \
-    global_speed, global_speed_koef, w, h = global_level
+    difficulty, dont_rot_col, rot_col, spl_rot_col, prime_col, scale, global_timer, global_speed, global_speed_koef, (
+        w), h = global_level
     set_width_and_height(w, h)
     set_w_h_butt(WIDTH_D - 6, HEIGHT_U - 50)
     error_image = pygame.image.load(fg_dir + sc_im).convert_alpha()
@@ -716,19 +736,22 @@ def level_settings():
                    input_box7, input_box8, input_box9, input_box10, input_box11]
     button = Button('BSe.png', (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
                     ['сохранить'], 'NewButton.png', 161,
-                    lambda: set_player_level(input_boxes), sz=17, sizefont=44)
+                    lambda: set_player_level(input_boxes), sz=17, sizefont=44, animate_ind=0, animation_delay=1)
     button1 = Button('BSe.png', (20, main_but_sizes[7]), ['   3 из 10'], 'NewButton.png', 161,
-                     lambda: set_level(easy_level, input_boxes), sz=17, sizefont=44)
+                     lambda: set_level(easy_level, input_boxes), sz=17, sizefont=44, animate_ind=8, animation_delay=1)
     button2 = Button('BSe.png', (20 + 300, main_but_sizes[7]), ['   5 из 10'], 'NewButton.png', 161,
-                     lambda: set_level(normal_level, input_boxes), sz=17, sizefont=44)
+                     lambda: set_level(normal_level, input_boxes), sz=17, sizefont=44, animate_ind=16,
+                     animation_delay=1)
     button3 = Button('BSe.png', (20 + 300 * 2, main_but_sizes[7]), ['   7 из 10'], 'NewButton.png', 161,
-                     lambda: set_level(medium_level, input_boxes), sz=17, sizefont=44)
+                     lambda: set_level(medium_level, input_boxes), sz=17, sizefont=44, animate_ind=24,
+                     animation_delay=1)
     button4 = Button('BSe.png', (20 + 300 * 3, main_but_sizes[7]), ['   9 из 10'], 'NewButton.png', 161,
-                     lambda: set_level(hard_level, input_boxes), sz=17, sizefont=44)
+                     lambda: set_level(hard_level, input_boxes), sz=17, sizefont=44, animate_ind=32, animation_delay=1)
     button5 = Button('BSe.png', (20 + 300 * 4, main_but_sizes[7]), ['   11 из 10'], 'NewButton.png', 161,
-                     lambda: set_level(demon_level, input_boxes), sz=17, sizefont=44)
+                     lambda: set_level(demon_level, input_boxes), sz=17, sizefont=44, animate_ind=40, animation_delay=1)
     button6 = Button('BSe.png', (20 + 300 * 4, main_but_sizes[6] * 6 + main_but_sizes[9] + 5), ['     свой'],
-                     'NewButton.png', 161, lambda: set_level(player_level, input_boxes), sz=17, sizefont=44)
+                     'NewButton.png', 161, lambda: set_level(player_level, input_boxes), sz=17, sizefont=44,
+                     animate_ind=48, animation_delay=1)
     buttons_spr = pygame.sprite.Group()
     setting_buttons = [button, button1, button2, button3, button4, button5, button6]
     for button in setting_buttons:
@@ -834,9 +857,9 @@ def settings():
     buttons_spr = pygame.sprite.Group()
     button1 = Button(d, (main_but_sizes[0], main_but_sizes[1]), ['      стиль'], 'BT_TEST.png',
                      alpha, lambda: import_style())
-    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 3),
+    button3 = ButtonMusicControl((main_but_sizes[5], main_but_sizes[6] * 3 - 2),
                                  'img/Style/MusicControl/music_control_minus.png', alpha, lambda: minus_volume())
-    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 3),
+    button4 = ButtonMusicControl((main_but_sizes[4], main_but_sizes[6] * 3 - 2),
                                  'img/Style/MusicControl/music_control_plus.png', alpha, lambda: plus_volume())
     button2 = pygame.sprite.Sprite()
     draw_text('img/Style/buttons/BS.png', ['      звук'], 54, 'img/Style/buttons/NewButton.png', 30, 30)
@@ -952,7 +975,7 @@ sounds = (click_sound, start_sound, win_sound, lose_sound, false_sound, true_sou
 decorations = pygame.sprite.Group()
 set_volume()
 FONT = pygame.font.Font('pixel_font.ttf', 32)
-size = [size_(0), size_(1)]
+size = [GetSystemMetrics(0), GetSystemMetrics(1)]
 coefficients = (1536 / size[0], 864 / size[1])
 main_but_sizes = [ret_size_x(570), ret_size_y(132), ret_size_y(140), ret_size_y(272), ret_size_y(1010),
                   ret_size_y(460), ret_size_y(100), ret_size_y(760), ret_size_y(24), ret_size_y(45)]
@@ -1000,12 +1023,12 @@ main_run = True
 animation_steps = (0, 1, 1, 1, 2, 3, 4)
 steps_count = len(animation_steps)
 
-for i in range(255, 0, -3):
+"""for i in range(255, 0, -3):
     backanimated = back1.copy()
     backanimated.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
     screen.fill(BLACK)
     screen.blit(backanimated, back_rect)
-    pygame.display.flip()
+    pygame.display.flip()"""
 while main_run:
     with suppress(Exception):
         main_menu()

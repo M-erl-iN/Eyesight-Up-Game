@@ -272,8 +272,6 @@ class InputBox:
 
 
 def draw_text(image, text, font_size, filename, x, sz):
-    """накладывает text с размером шрифта size
-    на изображение кнопки и сохраняет как filename"""
     if len(text) == 1:
         w = sz
     else:
@@ -593,21 +591,21 @@ def game():
     set_width_and_height(w, h)
     set_w_h_butt(WIDTH_D - 6, HEIGHT_U - 50)
     error_image = pygame.image.load(fg_dir + sc_im).convert_alpha()
-    scalefor = scale
-    scalej = scalefor // 20 + 1
-    for j in range(scalej):
-        if scalefor > 20:
-            scalei = 20
+    scale_for_cycle = scale
+    scale_j = scale_for_cycle // 20 + 1
+    for j in range(scale_j):
+        if scale_for_cycle > 20:
+            scale_i = 20
         else:
-            scalei = scale % 20
-            if scalefor % 20 == 0 and scalefor != 0:
-                scalei = 20
-        for i in range(scalei):
+            scale_i = scale % 20
+            if scale_for_cycle % 20 == 0 and scale_for_cycle != 0:
+                scale_i = 20
+        for i in range(scale_i):
             d = pygame.sprite.Sprite()
             d.image = error_image
             d.rect = [WIDTH_D + 10 + j * 30, HEIGHT_U + 55 + 30 * i, 25, 25]
             errors_col_sprites.add(d)
-        scalefor -= scalei
+        scale_for_cycle -= scale_i
     game_finished = False
 
     for i in range(not_rot_col):

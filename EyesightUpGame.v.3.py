@@ -1304,7 +1304,7 @@ exit_buttonQ = ButtonMusicControl(
 )
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
-slides_list = [f"img/slides/{i}" for i in listdir("img/slides")]
+slides_list = [f"img/Style/slides/{i}" for i in listdir("img/Style/slides")]
 slide = None
 back_ind = -1
 background_slide_rectangle = back_rect

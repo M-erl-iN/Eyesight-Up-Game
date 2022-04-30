@@ -4,9 +4,9 @@ import time
 from contextlib import suppress
 from os import listdir, remove
 from random import choice, randrange, sample
+from webbrowser import open as open_site
 
 import pygame
-from webbrowser import open as open_site
 from PIL import Image, ImageDraw, ImageFont
 from win32api import GetSystemMetrics
 
@@ -107,7 +107,7 @@ class SplitAnimatedFigure(AnimatedFigure):
         for i in spl_obj:
             game_process_sprites.add(i)
 
-    def vsp(self, i):
+    def flash(self, i):
         x, y = self.rect.x + (self.rect.width / 2), self.rect.y + (self.rect.height / 2)
         pygame.draw.circle(screen, self.colors[0], (x, y), i // 2 + 20)
         pygame.draw.circle(screen, self.colors[1], (x, y), i // 2 + 20, 5)
@@ -140,6 +140,7 @@ class Button(pygame.sprite.Sprite):
         self.current_animation_step = 1
         self.route = 1
         self.route_animate = 1
+        self.route_animate_delay = 1
         self.animation_time = 1 * 6
         self.current_animation_time = 0
         self.image_orig = d
@@ -157,6 +158,10 @@ class Button(pygame.sprite.Sprite):
         self.tr = tr
         self.target_step = 0
         self.stroke_delay = 0
+        if self.animation_delay:
+            self.update = self.animation_delay_function
+        else:
+            self.update = self.step_targets
 
     def target(self, i=2):
         self.image.set_alpha(self.alpha + (255 - self.alpha) // 3 * (3 - i))
@@ -166,28 +171,33 @@ class Button(pygame.sprite.Sprite):
             self.was_targeted = 0
 
     def clicked(self):
-        click_sound.play()
         self.func()
 
-    def update(self):
+    def animation_delay_function(self):
+        if self.animate_ind:
+            self.animate_ind -= 1
+        else:
+            self.update = self.update_animate
+
+    def update_animate(self):
         if self.animation_delay:
-            if self.animate_ind == 0:
-                self.current_animation_time += 1
-                if (
-                    self.current_animation_time
-                    >= self.animation_time
-                    / animation_steps[self.current_animation_step]
-                ):
-                    if self.current_animation_step == steps_count - 1:
-                        self.route = -1
-                    elif self.current_animation_step == 1:
-                        self.route = 1
-                        self.route_animate *= -1
-                    self.rect.y += self.route_animate
-                    self.current_animation_time = 0
-                    self.current_animation_step += self.route
-            else:
-                self.animate_ind -= 1
+            self.current_animation_time += 1
+            if (
+                self.current_animation_time
+                >= self.animation_time / animation_steps[self.current_animation_step]
+            ):
+                if self.current_animation_step == steps_count - 1:
+                    self.route = -1
+                    self.route_animate_delay = 1
+                elif self.current_animation_step == 1 and self.route_animate_delay:
+                    self.route = 1
+                    self.route_animate *= -1
+                    self.route_animate_delay = 0
+                self.rect.y += self.route_animate
+                self.current_animation_time = 0
+                self.current_animation_step += self.route
+        else:
+            self.animate_ind -= 1
         self.step_targets()
 
     def step_targets(self):
@@ -329,7 +339,6 @@ def event_test_exit(event):
         return False
     if event.type == pygame.MOUSEBUTTONDOWN:
         if in_coordinates_rect(exit_buttonQ.rect, *event.pos):
-            click_sound.play()
             set_w_h_butt(*ex_size_)
             return False
     if event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEMOTION:
@@ -387,7 +396,7 @@ def main_menu():
         split_sprites2_list.append(
             pygame.image.load(fg_dir + split_double_sprites[i + 1]).convert_alpha()
         )
-    fon_sound.play()
+    background_music.play()
     alpha = 161
     running = True
     tick = pygame.time.Clock()
@@ -460,7 +469,7 @@ def main_menu():
         buttons_spr.update()
         button_exit.update()
         decorations.update()
-        fon_sound.play()
+        background_music.play()
         screen.blit(back, back_rect)
         decorations.draw(screen)
         buttons_spr.draw(screen)
@@ -538,19 +547,19 @@ def finish_game(false):
                         if in_coordinates(rect, x, y):
                             if i.became_prime:
                                 true_clicks += 1
-                                true_sound.play()
+                                correct_choice_sound.play()
                                 i.image = im
                                 i.image_orig = im
                                 i.rect.size = im_size
                             else:
                                 false_clicks += 1
-                                false_sound.play()
+                                incorrect_choice_sound.play()
                                 errors_energy[-1].kill()
                                 errors_energy = errors_energy[:-1]
                                 i.kill()
                             break
             if false_clicks == false:
-                game_sound.stop()
+                game_music.stop()
                 lose_sound.play()
                 break
             elif true_clicks == true:
@@ -559,7 +568,7 @@ def finish_game(false):
                     pygame.draw.rect(screen, RECT_COLOR, i.rect, 2)
                 pygame.display.flip()
                 time.sleep(0.25)
-                game_sound.stop()
+                game_music.stop()
                 win_sound.play()
                 break
         for i in list(game_process_sprites):
@@ -571,8 +580,8 @@ def finish_game(false):
 
 
 def game():
-    global game_process_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprites, \
-        game_sound, global_level, global_speed_factor, volume, global_timer, global_speed
+    global game_process_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprites,\
+        game_music, global_level, global_speed_factor, volume, global_timer, global_speed
     game_process_sprites, animated_spr_list = pygame.sprite.Group(), []
     errors_col_sprites = pygame.sprite.Group()
     (
@@ -636,10 +645,10 @@ def game():
             c = AnimatedFigure(rotating_sprites[d])
         game_process_sprites.add(c)
 
-    fon_sound.stop()
-    game_sound = pygame.mixer.Sound(choice(game_sound_list))
-    game_sound.set_volume(volume)
-    game_sound.play()
+    background_music.stop()
+    game_music = pygame.mixer.Sound(choice(game_music_list))
+    game_music.set_volume(volume)
+    game_music.play()
     a1 = sample(list(game_process_sprites), prime_col)
 
     starting = start_game(a1)
@@ -656,7 +665,7 @@ def game():
                 if not running:
                     game_process_sprites, animated_spr_list = pygame.sprite.Group(), []
                     errors_col_sprites = pygame.sprite.Group()
-                    game_sound.stop()
+                    game_music.stop()
                     return
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
@@ -688,7 +697,7 @@ def game():
                             del animated_spr_list[animated_spr_list.index(i)]
                         del sprites[i]
                     else:
-                        i.vsp(sprites[i])
+                        i.flash(sprites[i])
                         sprites[i] += 1
                 button_exit.update()
                 button_exit.draw(screen)
@@ -697,12 +706,16 @@ def game():
                 finish_game(scale)
                 break
         if restart:
-            game_sound.stop()
+            game_music.stop()
             restart = False
             game()
-    game_sound.stop()
+    game_music.stop()
     set_w_h_butt(*ex_size_)
-    fon_sound.play()
+    background_music.play()
+
+
+def pass_function():
+    pass
 
 
 def training():
@@ -711,6 +724,7 @@ def training():
     tick = pygame.time.Clock()
     buttons_spr = pygame.sprite.Group()
     button1 = Button("BT_E.png", (2, 2), [""], "BT_E.png", alpha, lambda: slide_show())
+    button1.update = pass_function
     slide_show()
     image = pygame.image.load("materials/img/BT_SLIDES.png").convert_alpha()
     image.set_colorkey(BLACK)
@@ -718,7 +732,7 @@ def training():
     button1.image = image
     buttons_spr.add(button1)
     while running:
-        tick.tick(10)
+        tick.tick(5)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -733,6 +747,11 @@ def training():
                     button1.target()
                 else:
                     button1.target(0)
+        mouse_pos = pygame.mouse.get_pos()
+        if in_coordinates_rect(button1.rect, *mouse_pos):
+            button1.target()
+        else:
+            button1.target(0)
         buttons_spr.update()
         screen.blit(slide, background_slide_rectangle)
         buttons_spr.draw(screen)
@@ -774,10 +793,13 @@ def get_player_level(boxes):
 
 def set_player_level(boxes):
     global player_level
-    player_level[0] = normal if boxes[0].text == "-" else hard
-    for i in range(1, len(player_level)):
-        player_level[i] = int(boxes[i].text)
-    set_level(player_level, boxes)
+    with suppress(Exception):
+        player_current_level = player_level.copy()
+        player_current_level[0] = normal if boxes[0].text == "-" else hard
+        for i in range(1, len(player_level)):
+            player_current_level[i] = int(boxes[i].text)
+        set_level(player_current_level, boxes)
+        player_level = player_current_level
 
 
 def level_settings():
@@ -978,12 +1000,12 @@ def level_settings():
                 for button in setting_buttons:
                     if in_coordinates_rect(button.rect, *event.pos):
                         button.target()
-            if event.type == pygame.MOUSEMOTION:
-                for button in setting_buttons:
-                    if in_coordinates_rect(button.rect, *event.pos):
-                        button.target()
-                    else:
-                        button.target(0)
+        mouse_pos = pygame.mouse.get_pos()
+        for button in setting_buttons:
+            if in_coordinates_rect(button.rect, *mouse_pos):
+                button.target()
+            else:
+                button.target(0)
         with suppress(Exception):
             if int(input_box10.text) > size[0] - 100:
                 input_box10.text = str(size[0] - 100)
@@ -1089,7 +1111,9 @@ def settings():
         30,
         30,
     )
-    button2.image = pygame.image.load("materials/img/Style/buttons/NewButton.png").convert_alpha()
+    button2.image = pygame.image.load(
+        "materials/img/Style/buttons/NewButton.png"
+    ).convert_alpha()
     button2.rect = button2.image.get_rect()
     button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
     button2_ = pygame.sprite.Group(button2)
@@ -1110,16 +1134,16 @@ def settings():
                 for button in main_settings_buttons:
                     if in_coordinates_rect(button.rect, *event.pos):
                         button.target()
-            if event.type == pygame.MOUSEMOTION:
-                for button in main_settings_buttons:
-                    if in_coordinates_rect(button.rect, *event.pos):
-                        button.target()
-                    else:
-                        button.target(0)
+        mouse_pos = pygame.mouse.get_pos()
+        for button in main_settings_buttons:
+            if in_coordinates_rect(button.rect, *mouse_pos):
+                button.target()
+            else:
+                button.target(0)
         buttons_spr.update()
         button_exit.update()
         decorations.update()
-        fon_sound.play()
+        background_music.play()
         screen.blit(back, back_rect)
         decorations.draw(screen)
         music_volume_sprites.draw(screen)
@@ -1232,25 +1256,29 @@ put = "materials/Style"
 pygame.init()
 pygame.mixer.init()
 
-click_sound = pygame.mixer.Sound("materials/sounds/click.ogg")
-start_sound = pygame.mixer.Sound("materials/sounds/start_game.ogg")
+start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")
 start_sound.set_volume(0.7)
-win_sound = pygame.mixer.Sound("materials/sounds/WG.ogg")
-lose_sound = pygame.mixer.Sound("materials/sounds/LG.ogg")
-false_sound = pygame.mixer.Sound("materials/sounds/FC.ogg")
-true_sound = pygame.mixer.Sound("materials/sounds/TC.ogg")
-fon_sound = pygame.mixer.Sound("materials/sounds/fon.ogg")
-game_sound = pygame.mixer.Sound("materials/sounds/GS2.ogg")
-game_sound_list = ("materials/sounds/GS1.ogg", "materials/sounds/GS2.ogg", "materials/sounds/GS3.ogg")
+win_sound = pygame.mixer.Sound("materials/sounds/win_game_sound.ogg")
+lose_sound = pygame.mixer.Sound("materials/sounds/lose_game_sound.ogg")
+incorrect_choice_sound = pygame.mixer.Sound(
+    "materials/sounds/incorrect_choice_sound.ogg"
+)
+correct_choice_sound = pygame.mixer.Sound("materials/sounds/correct_choice_sound.ogg")
+background_music = pygame.mixer.Sound("materials/sounds/background_music.ogg")
+game_music = pygame.mixer.Sound("materials/sounds/game_music2.ogg")
+game_music_list = (
+    "materials/sounds/game_music1.ogg",
+    "materials/sounds/game_music2.ogg",
+    "materials/sounds/game_music3.ogg",
+)
 sounds = (
-    click_sound,
     start_sound,
     win_sound,
     lose_sound,
-    false_sound,
-    true_sound,
-    fon_sound,
-    game_sound,
+    incorrect_choice_sound,
+    correct_choice_sound,
+    background_music,
+    game_music,
 )
 
 decorations = pygame.sprite.Group()
@@ -1273,7 +1301,9 @@ main_but_sizes = [
 ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Eyesight Up Game")
-pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
+pygame.display.set_icon(
+    pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha()
+)
 clock = pygame.time.Clock()
 set_style()
 back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
@@ -1296,36 +1326,39 @@ hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
 demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
 global_level = level
 restart = False
-music_image = pygame.image.load("materials/img/music_control_count_image.png").convert_alpha()
+music_image = pygame.image.load(
+    "materials/img/music_control_count_image.png"
+).convert_alpha()
 exit_buttonQ = ButtonMusicControl(
     (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
 )
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
-slides_list = [f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")]
+slides_list = [
+    f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")
+]
 slide = None
 back_ind = -1
 background_slide_rectangle = back_rect
 errors_col_sprites = pygame.sprite.Group()
 music_volume_sprites = pygame.sprite.Group()
 help_volume()
-start_sound.play()
+
 back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
 main_run = True
 
-animation_steps = (0, 1, 1, 1, 2, 3, 4)
+animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
 steps_count = len(animation_steps)
-
-"""for i in range(255, 0, -3):
+start_sound.play()
+for i in range(255, 0, -4):
     animated_background = back1.copy()
     animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
     screen.fill(BLACK)
     screen.blit(animated_background, back_rect)
-    pygame.display.flip()"""
-"""while main_run:
+    pygame.display.flip()
+while main_run:
     with suppress(Exception):
-        main_menu()"""
-main_menu()
+        main_menu()
 with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
     writer = csv.writer(
         csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL

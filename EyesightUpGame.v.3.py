@@ -10,7 +10,7 @@ from webbrowser import open as open_site
 from PIL import Image, ImageDraw, ImageFont
 from win32api import GetSystemMetrics
 
-from img.explosions import *
+from materials.color_information import *
 
 
 class Figure(pygame.sprite.Sprite):
@@ -131,7 +131,7 @@ class Button(pygame.sprite.Sprite):
     ):
         self.animate_ind = animate_ind
         self.animation_delay = animation_delay
-        a = "img/Style/buttons/"
+        a = "materials/img/Style/buttons/"
         image0 = a + template_image
         image = a + button_name
         draw_text(image0, button_text, font_size, image, x, sz)
@@ -276,7 +276,7 @@ def draw_text(image, text, font_size, filename, x, sz):
         w = sz
     else:
         w = 5
-    font = ImageFont.truetype("pixel_font.ttf", font_size, encoding="unic")
+    font = ImageFont.truetype("materials/font.ttf", font_size, encoding="unic")
     canvas = Image.open(image)
 
     draw = ImageDraw.Draw(canvas)
@@ -712,7 +712,7 @@ def training():
     buttons_spr = pygame.sprite.Group()
     button1 = Button("BT_E.png", (2, 2), [""], "BT_E.png", alpha, lambda: slide_show())
     slide_show()
-    image = pygame.image.load("img/BT_SLIDES.png").convert_alpha()
+    image = pygame.image.load("materials/img/BT_SLIDES.png").convert_alpha()
     image.set_colorkey(BLACK)
     button1.image_orig = image
     button1.image = image
@@ -1070,26 +1070,26 @@ def settings():
     )
     button3 = ButtonMusicControl(
         (main_but_sizes[5], main_but_sizes[6] * 3 - 2),
-        "img/Style/MusicControl/music_control_minus.png",
+        "materials/img/Style/MusicControl/music_control_minus.png",
         alpha,
         lambda: minus_volume(),
     )
     button4 = ButtonMusicControl(
         (main_but_sizes[4], main_but_sizes[6] * 3 - 2),
-        "img/Style/MusicControl/music_control_plus.png",
+        "materials/img/Style/MusicControl/music_control_plus.png",
         alpha,
         lambda: plus_volume(),
     )
     button2 = pygame.sprite.Sprite()
     draw_text(
-        "img/Style/buttons/BS.png",
+        "materials/img/Style/buttons/BS.png",
         ["      звук"],
         54,
-        "img/Style/buttons/NewButton.png",
+        "materials/img/Style/buttons/NewButton.png",
         30,
         30,
     )
-    button2.image = pygame.image.load("img/Style/buttons/NewButton.png").convert_alpha()
+    button2.image = pygame.image.load("materials/img/Style/buttons/NewButton.png").convert_alpha()
     button2.rect = button2.image.get_rect()
     button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
     button2_ = pygame.sprite.Group(button2)
@@ -1186,7 +1186,7 @@ def set_style():
 
 volume = 0
 level = 0
-with open("level.csv", encoding="utf8") as csv_file:
+with open("materials/data.csv", encoding="utf8") as csv_file:
     reader = csv.reader(csv_file, delimiter=";", quotechar='"')
     for index, q in enumerate(reader):
         if q[0] == "":
@@ -1224,24 +1224,24 @@ not_rotated_images = ["ball2.png"]
 not_rotated_sprites = []
 game_process_sprites = pygame.sprite.Group()
 
-bt_dir = "img/Style/buttons/"
-bg_dir = "img/Style/backgrounds/"
-fg_dir = "img/Style/figures/"
-put = "/Style"
+bt_dir = "materials/img/Style/buttons/"
+bg_dir = "materials/img/Style/backgrounds/"
+fg_dir = "materials/img/Style/figures/"
+put = "materials/Style"
 
 pygame.init()
 pygame.mixer.init()
 
-click_sound = pygame.mixer.Sound("sounds/click.ogg")
-start_sound = pygame.mixer.Sound("sounds/start_game.ogg")
+click_sound = pygame.mixer.Sound("materials/sounds/click.ogg")
+start_sound = pygame.mixer.Sound("materials/sounds/start_game.ogg")
 start_sound.set_volume(0.7)
-win_sound = pygame.mixer.Sound("sounds/WG.ogg")
-lose_sound = pygame.mixer.Sound("sounds/LG.ogg")
-false_sound = pygame.mixer.Sound("sounds/FC.ogg")
-true_sound = pygame.mixer.Sound("sounds/TC.ogg")
-fon_sound = pygame.mixer.Sound("sounds/fon.ogg")
-game_sound = pygame.mixer.Sound("sounds/GS2.ogg")
-game_sound_list = ("sounds/GS1.ogg", "sounds/GS2.ogg", "sounds/GS3.ogg")
+win_sound = pygame.mixer.Sound("materials/sounds/WG.ogg")
+lose_sound = pygame.mixer.Sound("materials/sounds/LG.ogg")
+false_sound = pygame.mixer.Sound("materials/sounds/FC.ogg")
+true_sound = pygame.mixer.Sound("materials/sounds/TC.ogg")
+fon_sound = pygame.mixer.Sound("materials/sounds/fon.ogg")
+game_sound = pygame.mixer.Sound("materials/sounds/GS2.ogg")
+game_sound_list = ("materials/sounds/GS1.ogg", "materials/sounds/GS2.ogg", "materials/sounds/GS3.ogg")
 sounds = (
     click_sound,
     start_sound,
@@ -1255,7 +1255,7 @@ sounds = (
 
 decorations = pygame.sprite.Group()
 set_volume()
-FONT = pygame.font.Font("pixel_font.ttf", 32)
+FONT = pygame.font.Font("materials/font.ttf", 32)
 size = [GetSystemMetrics(0), GetSystemMetrics(1)]
 coefficients = (1536 / size[0], 864 / size[1])
 main_but_sizes = [
@@ -1273,7 +1273,7 @@ main_but_sizes = [
 ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("Eyesight Up Game")
-pygame.display.set_icon(pygame.image.load("icon/active_exe_icon.png").convert_alpha())
+pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
 clock = pygame.time.Clock()
 set_style()
 back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
@@ -1287,7 +1287,7 @@ hard = 4
 demon = 5
 COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
 COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
-FONT2 = pygame.font.Font("pixel_font.ttf", main_but_sizes[8])
+FONT2 = pygame.font.Font("materials/font.ttf", main_but_sizes[8])
 global_timer = 0
 easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
 normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
@@ -1296,13 +1296,13 @@ hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
 demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
 global_level = level
 restart = False
-music_image = pygame.image.load("img/music_control_count_image.png").convert_alpha()
+music_image = pygame.image.load("materials/img/music_control_count_image.png").convert_alpha()
 exit_buttonQ = ButtonMusicControl(
-    (ret_sizes(1481, 5)), "img/Style/buttons/BT_E.png", 161, lambda x: x
+    (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
 )
 button_exit = pygame.sprite.Group()
 button_exit.add(exit_buttonQ)
-slides_list = [f"img/Style/slides/{i}" for i in listdir("img/Style/slides")]
+slides_list = [f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")]
 slide = None
 back_ind = -1
 background_slide_rectangle = back_rect
@@ -1322,13 +1322,14 @@ steps_count = len(animation_steps)
     screen.fill(BLACK)
     screen.blit(animated_background, back_rect)
     pygame.display.flip()"""
-while main_run:
+"""while main_run:
     with suppress(Exception):
-        main_menu()
-with open("level.csv", "w", newline="", encoding="utf8") as csv_file:
+        main_menu()"""
+main_menu()
+with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
     writer = csv.writer(
         csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL
     )
     writer.writerow([*global_level])
     writer.writerow([*player_level, volume, global_speed, global_speed_factor])
-remove("""img/Style/buttons/NewButton.png""")
+remove("""materials/img/Style/buttons/NewButton.png""")

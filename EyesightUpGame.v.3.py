@@ -445,7 +445,7 @@ def main_menu():
     for button in main_buttons:
         buttons_spr.add(button)
     while running:
-        tick.tick(60)
+        tick.tick(FPS)
         for event in pygame.event.get():
             running = event_test_exit(event)
             if not running:
@@ -474,6 +474,7 @@ def main_menu():
         decorations.draw(screen)
         buttons_spr.draw(screen)
         button_exit.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
     pygame.quit()
 
@@ -504,6 +505,7 @@ def start_game(list__):
         game_process_sprites.draw(screen)
         spr_start.draw(screen)
         errors_col_sprites.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
     spr_start.clear(screen, back)
     for i in list_:
@@ -566,6 +568,7 @@ def finish_game(false):
                 game_process_sprites.draw(screen)
                 for i in list(game_process_sprites):
                     pygame.draw.rect(screen, RECT_COLOR, i.rect, 2)
+                screen.blit(cursor, (pygame.mouse.get_pos()))
                 pygame.display.flip()
                 time.sleep(0.25)
                 game_music.stop()
@@ -576,6 +579,7 @@ def finish_game(false):
         button_exit.draw(screen)
         game_process_sprites.draw(screen)
         errors_col_sprites.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
 
 
@@ -701,6 +705,7 @@ def game():
                         sprites[i] += 1
                 button_exit.update()
                 button_exit.draw(screen)
+                screen.blit(cursor, (pygame.mouse.get_pos()))
                 pygame.display.flip()
             elif not game_finished:
                 finish_game(scale)
@@ -732,7 +737,7 @@ def training():
     button1.image = image
     buttons_spr.add(button1)
     while running:
-        tick.tick(5)
+        tick.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -755,6 +760,7 @@ def training():
         buttons_spr.update()
         screen.blit(slide, background_slide_rectangle)
         buttons_spr.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
 
 
@@ -1021,8 +1027,9 @@ def level_settings():
             box.update()
         for box in input_boxes:
             box.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(FPS)
 
 
 def set_width_and_height(w, h):
@@ -1121,7 +1128,7 @@ def settings():
     for button in main_settings_buttons:
         buttons_spr.add(button)
     while running:
-        tick.tick(60)
+        tick.tick(FPS)
         for event in pygame.event.get():
             running = event_test_exit(event)
             if not running:
@@ -1150,6 +1157,7 @@ def settings():
         button2_.draw(screen)
         buttons_spr.draw(screen)
         button_exit.draw(screen)
+        screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
     pygame.quit()
 
@@ -1255,6 +1263,9 @@ put = "materials/Style"
 
 pygame.init()
 pygame.mixer.init()
+
+pygame.mouse.set_visible(False)
+cursor = pygame.image.load("materials\img\Style\cursor\cursor.png")
 
 start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")
 start_sound.set_volume(0.7)

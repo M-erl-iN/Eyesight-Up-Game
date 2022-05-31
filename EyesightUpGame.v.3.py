@@ -417,6 +417,7 @@ def main_menu():
     tick = pygame.time.Clock()
     d = "BS.png"
     buttons_spr = pygame.sprite.Group()
+    # button_parameters = [d, (main_but_sizes[0], main_but_sizes[1]), None, "NewButton.png", alpha]
     button1 = Button(
         d,
         (main_but_sizes[0], main_but_sizes[1]),
@@ -1231,167 +1232,164 @@ def set_style():
     pass
 
 
-volume = 0
-level = 0
-with open("materials/data.csv", encoding="utf8") as csv_file:
-    reader = csv.reader(csv_file, delimiter=";", quotechar='"')
-    for index, q in enumerate(reader):
-        if q[0] == "":
-            break
-        elif not index:
-            level = [int(i) for i in q]
-        elif index:
-            player_level = [int(i) for i in q[:-3]]
-            volume = float(q[-3])
-            global_speed = int(q[-2])
-            global_speed_factor = int(q[-1])
+if __name__ == "__main__":
+    volume = 0
+    level = 0
+    with open("materials/data.csv", encoding="utf8") as csv_file:
+        reader = csv.reader(csv_file, delimiter=";", quotechar='"')
+        for index, q in enumerate(reader):
+            if q[0] == "":
+                break
+            elif not index:
+                level = [int(i) for i in q]
+            elif index:
+                player_level = [int(i) for i in q[:-3]]
+                volume = float(q[-3])
+                global_speed = int(q[-2])
+                global_speed_factor = int(q[-1])
 
-buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, speed, BLACK = (
-    [],
-    0,
-    0,
-    0,
-    0,
-    60,
-    6,
-    (0, 0, 0),
-)
-speed_factor = 1
-
-rotating_images = ["FT4.png"]
-sc_im = "score_chunk1.png"
-split_double_sprites = ["FT2.png", "FT3.png", "FS_2.png", "FS_2_2.png"]
-animated_spr_list, split_sprites1_list, split_sprites2_list, rotating_sprites = (
-    [],
-    [],
-    [],
-    [],
-)
-not_rotated_images = ["ball2.png"]
-not_rotated_sprites = []
-game_process_sprites = pygame.sprite.Group()
-
-bt_dir = "materials/img/Style/buttons/"
-bg_dir = "materials/img/Style/backgrounds/"
-fg_dir = "materials/img/Style/figures/"
-put = "materials/Style"
-
-pygame.init()
-pygame.mixer.init()
-
-pygame.mouse.set_visible(False)
-pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png"))
-pygame.display.set_caption("Title", "materials/icon/active_exe_icon.png")
-
-cursor = pygame.image.load("materials\img\Style\cursor\cursor.png")
-
-start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")
-start_sound.set_volume(0.7)
-win_sound = pygame.mixer.Sound("materials/sounds/win_game_sound.ogg")
-lose_sound = pygame.mixer.Sound("materials/sounds/lose_game_sound.ogg")
-incorrect_choice_sound = pygame.mixer.Sound(
-    "materials/sounds/incorrect_choice_sound.ogg"
-)
-correct_choice_sound = pygame.mixer.Sound("materials/sounds/correct_choice_sound.ogg")
-background_music = pygame.mixer.Sound("materials/sounds/background_music.ogg")
-game_music = pygame.mixer.Sound("materials/sounds/game_music2.ogg")
-game_music_list = (
-    "materials/sounds/game_music1.ogg",
-    "materials/sounds/game_music2.ogg",
-    "materials/sounds/game_music3.ogg",
-)
-sounds = (
-    start_sound,
-    win_sound,
-    lose_sound,
-    incorrect_choice_sound,
-    correct_choice_sound,
-    background_music,
-    game_music,
-)
-
-decorations = pygame.sprite.Group()
-set_volume()
-FONT = pygame.font.Font("materials/font.ttf", 32)
-size = [GetSystemMetrics(0), GetSystemMetrics(1)]
-coefficients = (1536 / size[0], 864 / size[1])
-main_but_sizes = [
-    ret_size_x(570),
-    ret_size_y(132),
-    ret_size_y(140),
-    ret_size_y(272),
-    ret_size_y(1010),
-    ret_size_y(460),
-    ret_size_y(100),
-    ret_size_y(760),
-    ret_size_y(24),
-    ret_size_y(45),
-]
-ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
-screen = pygame.display.set_mode(size)
-pygame.display.set_caption("Eyesight Up Game")
-pygame.display.set_icon(
-    pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha()
-)
-clock = pygame.time.Clock()
-set_style()
-back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
-back_rect = back.get_rect()
-colors = colorsS
-sprites_to_colors = sprites_to_colorsS
-easy = 1
-normal = 2
-medium = 3
-hard = 4
-demon = 5
-COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
-COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
-FONT2 = pygame.font.Font("materials/font.ttf", main_but_sizes[8])
-global_timer = 0
-easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
-normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
-medium_level = (3, 3, 3, 3, 3, 2, 20, 2, 2, *ret_sizes(700, 720))
-hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
-demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
-global_level = level
-restart = False
-music_image = pygame.image.load(
-    "materials/img/music_control_count_image.png"
-).convert_alpha()
-exit_buttonQ = ButtonMusicControl(
-    (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
-)
-button_exit = pygame.sprite.Group()
-button_exit.add(exit_buttonQ)
-slides_list = [
-    f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")
-]
-slide = None
-back_ind = -1
-background_slide_rectangle = back_rect
-errors_col_sprites = pygame.sprite.Group()
-music_volume_sprites = pygame.sprite.Group()
-help_volume()
-
-back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
-main_run = True
-
-animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
-steps_count = len(animation_steps)
-start_sound.play()
-for i in range(255, 0, -4):
-    animated_background = back1.copy()
-    animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
-    screen.fill(BLACK)
-    screen.blit(animated_background, back_rect)
-    pygame.display.flip()
-while main_run:
-    with suppress(Exception):
-        main_menu()
-with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
-    writer = csv.writer(
-        csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL
+    buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, speed, BLACK = (
+        [],
+        0,
+        0,
+        0,
+        0,
+        60,
+        6,
+        (0, 0, 0),
     )
-    writer.writerow([*global_level])
-    writer.writerow([*player_level, volume, global_speed, global_speed_factor])
-remove("""materials/img/Style/buttons/NewButton.png""")
+    speed_factor = 1
+
+    rotating_images = ["FT4.png"]
+    sc_im = "score_chunk1.png"
+    split_double_sprites = ["FT2.png", "FT3.png", "FS_2.png", "FS_2_2.png"]
+    animated_spr_list, split_sprites1_list, split_sprites2_list, rotating_sprites = (
+        [],
+        [],
+        [],
+        [],
+    )
+    not_rotated_images = ["ball2.png"]
+    not_rotated_sprites = []
+    game_process_sprites = pygame.sprite.Group()
+
+    bt_dir = "materials/img/Style/buttons/"
+    bg_dir = "materials/img/Style/backgrounds/"
+    fg_dir = "materials/img/Style/figures/"
+    put = "materials/Style"
+
+    pygame.init()
+    pygame.mixer.init()
+
+    pygame.mouse.set_visible(False)
+    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png"))
+    pygame.display.set_caption("Title", "materials/icon/active_exe_icon.png")
+
+    cursor = pygame.image.load("materials/img/Style/cursor/cursor.png")
+
+    start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")
+    start_sound.set_volume(0.7)
+    win_sound = pygame.mixer.Sound("materials/sounds/win_game_sound.ogg")
+    lose_sound = pygame.mixer.Sound("materials/sounds/lose_game_sound.ogg")
+    incorrect_choice_sound = pygame.mixer.Sound("materials/sounds/incorrect_choice_sound.ogg")
+    correct_choice_sound = pygame.mixer.Sound("materials/sounds/correct_choice_sound.ogg")
+    background_music = pygame.mixer.Sound("materials/sounds/background_music.ogg")
+    game_music = pygame.mixer.Sound("materials/sounds/game_music2.ogg")
+    game_music_list = (
+        "materials/sounds/game_music1.ogg",
+        "materials/sounds/game_music2.ogg",
+        "materials/sounds/game_music3.ogg",
+    )
+    sounds = (
+        start_sound,
+        win_sound,
+        lose_sound,
+        incorrect_choice_sound,
+        correct_choice_sound,
+        background_music,
+        game_music,
+    )
+
+    decorations = pygame.sprite.Group()
+    set_volume()
+    FONT = pygame.font.Font("materials/font.ttf", 32)
+    size = [GetSystemMetrics(0), GetSystemMetrics(1)]
+    coefficients = (1536 / size[0], 864 / size[1])
+    main_but_sizes = [
+        ret_size_x(570),
+        ret_size_y(132),
+        ret_size_y(140),
+        ret_size_y(272),
+        ret_size_y(1010),
+        ret_size_y(460),
+        ret_size_y(100),
+        ret_size_y(760),
+        ret_size_y(24),
+        ret_size_y(45),
+    ]
+    ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
+    screen = pygame.display.set_mode(size)
+    pygame.display.set_caption("Eyesight Up Game")
+    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
+    clock = pygame.time.Clock()
+    set_style()
+    back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
+    back_rect = back.get_rect()
+    colors = colorsS
+    sprites_to_colors = sprites_to_colorsS
+    easy = 1
+    normal = 2
+    medium = 3
+    hard = 4
+    demon = 5
+    COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
+    COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
+    FONT2 = pygame.font.Font("materials/font.ttf", main_but_sizes[8])
+    global_timer = 0
+    easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
+    normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
+    medium_level = (3, 3, 3, 3, 3, 2, 20, 2, 2, *ret_sizes(700, 720))
+    hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
+    demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
+    global_level = level
+    restart = False
+    music_image = pygame.image.load(
+        "materials/img/music_control_count_image.png"
+    ).convert_alpha()
+    exit_buttonQ = ButtonMusicControl(
+        (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
+    )
+    button_exit = pygame.sprite.Group()
+    button_exit.add(exit_buttonQ)
+    slides_list = [
+        f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")
+    ]
+    slide = None
+    back_ind = -1
+    background_slide_rectangle = back_rect
+    errors_col_sprites = pygame.sprite.Group()
+    music_volume_sprites = pygame.sprite.Group()
+    help_volume()
+
+    back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
+    main_run = True
+
+    animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
+    steps_count = len(animation_steps)
+    start_sound.play()
+    for i in range(255, 0, -4):
+        animated_background = back1.copy()
+        animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
+        screen.fill(BLACK)
+        screen.blit(animated_background, back_rect)
+        pygame.display.flip()
+    while main_run:
+        with suppress(Exception):
+            main_menu()
+    with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
+        writer = csv.writer(
+            csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL
+        )
+        writer.writerow([*global_level])
+        writer.writerow([*player_level, volume, global_speed, global_speed_factor])
+    remove("""materials/img/Style/buttons/NewButton.png""")

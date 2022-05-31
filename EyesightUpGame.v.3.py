@@ -1265,6 +1265,9 @@ pygame.init()
 pygame.mixer.init()
 
 pygame.mouse.set_visible(False)
+pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png"))
+pygame.display.set_caption("Title", "materials/icon/active_exe_icon.png")
+
 cursor = pygame.image.load("materials\img\Style\cursor\cursor.png")
 
 start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")

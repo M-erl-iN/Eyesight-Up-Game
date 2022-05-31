@@ -13,8 +13,10 @@ from win32api import GetSystemMetrics
 from materials.color_information import *
 
 
+# Родительский класс для всех фигур
 class Figure(pygame.sprite.Sprite):
     def __init__(self, image, width=None, height=None):
+        #  назначение всех нужных переменных
         if width is None:
             width = (WIDTH_U, WIDTH_D)
         if height is None:
@@ -33,6 +35,7 @@ class Figure(pygame.sprite.Sprite):
         self.became_prime = 0
 
     def update(self):
+        #  обновление позиций фигур
         self.rect.x += self.speed_x
         self.rect.y += self.speedy
         if self.rect.top < self.board_sizes[1][0]:
@@ -47,6 +50,7 @@ class Figure(pygame.sprite.Sprite):
 
 class AnimatedFigure(Figure):
     def __init__(self, image, width=0, height=0):
+        #  назначение всех нужных переменных
         if width == 0:
             width = (WIDTH_U, WIDTH_D)
         if height == 0:
@@ -57,10 +61,12 @@ class AnimatedFigure(Figure):
         self.last_update = pygame.time.get_ticks()
 
     def update(self):
+        #  обновление позиций фигур
         self.rotate()
         Figure.update(self)
 
     def rotate(self):
+        #  вращение изображения от оригинала
         now = pygame.time.get_ticks()
         if now - self.last_update > 25:
             self.last_update = now
@@ -74,6 +80,7 @@ class AnimatedFigure(Figure):
 
 class SplitAnimatedFigure(AnimatedFigure):
     def __init__(self, image, spl_img, lep_count, dif, color1, color2):
+        #  назначение всех нужных переменных
         super(SplitAnimatedFigure, self).__init__(image)
         self.split_obj_list = [AnimatedFigure(spl_img) for _ in range(lep_count)]
         self.colors = (color1, color2)
@@ -83,6 +90,7 @@ class SplitAnimatedFigure(AnimatedFigure):
             self.dif = 2
 
     def split_(self):
+        #  шанс разделения на несколько фигур
         if self.dif >= medium:
             a, b = 200, main_but_sizes[9] + 50
         else:
@@ -92,11 +100,8 @@ class SplitAnimatedFigure(AnimatedFigure):
         else:
             return 0
 
-    def update(self):
-        super(SplitAnimatedFigure, self).update()
-        self.split_()
-
     def segmentation(self):
+        #  разделение фигур без повторов
         for i in self.split_obj_list:
             i.rect.x, i.rect.y = self.rect.x, self.rect.y
             i.speed_x = rand_speed()
@@ -108,11 +113,13 @@ class SplitAnimatedFigure(AnimatedFigure):
             game_process_sprites.add(i)
 
     def flash(self, i):
+        #  создание вспышки
         x, y = self.rect.x + (self.rect.width / 2), self.rect.y + (self.rect.height / 2)
         pygame.draw.circle(screen, self.colors[0], (x, y), i // 2 + 20)
         pygame.draw.circle(screen, self.colors[1], (x, y), i // 2 + 20, 5)
 
 
+#  родительский класс кнопки
 class Button(pygame.sprite.Sprite):
     def __init__(
         self,
@@ -129,6 +136,7 @@ class Button(pygame.sprite.Sprite):
         animate_ind=0,
         animation_delay=0,
     ):
+        #  создание изображения по шаблону и надписи для кнопки
         self.animate_ind = animate_ind
         self.animation_delay = animation_delay
         a = "materials/img/Style/buttons/"
@@ -164,6 +172,7 @@ class Button(pygame.sprite.Sprite):
             self.update = self.step_targets
 
     def target(self, i=2):
+        #  изменение прозрачности и позиции при наведении и нажатии
         self.image.set_alpha(self.alpha + (255 - self.alpha) // 3 * (3 - i))
         if i == 2 and not self.was_targeted:
             self.was_targeted = 1
@@ -171,6 +180,7 @@ class Button(pygame.sprite.Sprite):
             self.was_targeted = 0
 
     def clicked(self):
+        #  запуск переданной функции
         self.func()
 
     def animation_delay_function(self):
@@ -201,6 +211,7 @@ class Button(pygame.sprite.Sprite):
         self.step_targets()
 
     def step_targets(self):
+        #  установка шага смещения вниз при наведении
         if self.stroke_delay:
             self.stroke_delay = 0
             if self.was_targeted:
@@ -217,6 +228,7 @@ class Button(pygame.sprite.Sprite):
             self.stroke_delay = 1
 
 
+#  кнопка, независящая от надписи
 class ButtonMusicControl(Button):
     def __init__(self, pos, image, alpha, func, tr=1):
         pygame.sprite.Sprite.__init__(self)
@@ -235,6 +247,7 @@ class ButtonMusicControl(Button):
         pygame.sprite.Sprite.update(self)
 
 
+#  реализация ввода с клавиатуры
 class InputBox:
     def __init__(self, x, y, w, h, parameter, doz="0123456789", doz_len=2):
         self.doz = doz
@@ -251,6 +264,7 @@ class InputBox:
         self.txt_surface = None
 
     def handle_event(self, event):
+        #  обработка ввода с клавиатуры
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect2.collidepoint(event.pos):
                 self.active = not self.active
@@ -295,6 +309,7 @@ def draw_text(image, text, font_size, filename, x, sz):
     canvas.save(filename, "PNG")
 
 
+#  коэффициент перезаписи изображений под пользовательский экран
 def set_factor_for_img(img_name):
     img = Image.open(img_name)
     x, y = img.size

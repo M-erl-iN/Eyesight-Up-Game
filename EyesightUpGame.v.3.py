@@ -229,7 +229,7 @@ class Button(pygame.sprite.Sprite):
 
 
 #  кнопка, независящая от надписи
-class ButtonMusicControl(Button):
+class MiniButton(Button):
     def __init__(self, pos, image, alpha, func, tr=1):
         pygame.sprite.Sprite.__init__(self)
         d = pygame.image.load(image).convert_alpha()
@@ -1113,13 +1113,13 @@ def settings():
         alpha,
         lambda: import_style(),
     )
-    button3 = ButtonMusicControl(
+    button3 = MiniButton(
         (main_but_sizes[5], main_but_sizes[6] * 3 - 2),
         "materials/img/Style/MusicControl/music_control_minus.png",
         alpha,
         lambda: minus_volume(),
     )
-    button4 = ButtonMusicControl(
+    button4 = MiniButton(
         (main_but_sizes[4], main_but_sizes[6] * 3 - 2),
         "materials/img/Style/MusicControl/music_control_plus.png",
         alpha,
@@ -1356,7 +1356,7 @@ if __name__ == "__main__":
     music_image = pygame.image.load(
         "materials/img/music_control_count_image.png"
     ).convert_alpha()
-    exit_buttonQ = ButtonMusicControl(
+    exit_buttonQ = MiniButton(
         (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
     )
     button_exit = pygame.sprite.Group()
@@ -1377,7 +1377,7 @@ if __name__ == "__main__":
     animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
     steps_count = len(animation_steps)
     start_sound.play()
-    for i in range(255, 0, -4):
+    for i in range(255, 0, -5):
         animated_background = back1.copy()
         animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
         screen.fill(BLACK)

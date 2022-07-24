@@ -1065,7 +1065,7 @@ def help_volume():
         music_volume_sprites.add(d)
 
 
-def plus_volume():
+def turn_up_volume():
     global volume
     if volume < 1.0:
         volume = volume + 0.1
@@ -1073,7 +1073,7 @@ def plus_volume():
         help_volume()
 
 
-def minus_volume():
+def turn_down_volume():
     global volume
     if volume > 0.0:
         volume = volume - 0.1
@@ -1104,13 +1104,13 @@ def settings():
         (main_but_sizes[5], main_but_sizes[6] * 3 - 2),
         "materials/img/Style/MusicControl/music_control_minus.png",
         alpha,
-        lambda: minus_volume(),
+        lambda: turn_down_volume(),
     )
     button4 = MiniButton(
         (main_but_sizes[4], main_but_sizes[6] * 3 - 2),
         "materials/img/Style/MusicControl/music_control_plus.png",
         alpha,
-        lambda: plus_volume(),
+        lambda: turn_up_volume(),
     )
     button2 = pygame.sprite.Sprite()
     draw_text(
@@ -1370,9 +1370,9 @@ if __name__ == "__main__":
         screen.fill(BLACK)
         screen.blit(animated_background, back_rect)
         pygame.display.flip()
-    # while main_run:
-    #     with suppress(Exception):
-    main_menu()
+    while main_run:
+        with suppress(Exception):
+            main_menu()
     with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
         writer = csv.writer(
             csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL

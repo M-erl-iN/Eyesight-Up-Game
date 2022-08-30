@@ -1,5 +1,6 @@
 # EyesightUpGame
 import csv
+import json
 import time
 from contextlib import suppress
 from os import listdir, remove
@@ -8,9 +9,9 @@ from webbrowser import open as open_site
 
 import pygame
 from PIL import Image, ImageDraw, ImageFont
-from win32api import GetSystemMetrics
+from screeninfo import get_monitors
 
-from materials.color_information import *
+from materials.data.color_information import *
 
 
 # Родительский класс для всех фигур
@@ -123,10 +124,9 @@ class SplitAnimatedFigure(AnimatedFigure):
 class Button(pygame.sprite.Sprite):
     def __init__(
         self,
-        template_image,
+        image,
         pos,
         button_text,
-        button_name,
         alpha,
         func,
         font_size=54,
@@ -139,19 +139,14 @@ class Button(pygame.sprite.Sprite):
         #  создание изображения по шаблону и надписи для кнопки
         self.animate_ind = animate_ind
         self.animation_delay = animation_delay
-        a = "materials/img/Style/buttons/"
-        image0 = a + template_image
-        image = a + button_name
-        draw_text(image0, button_text, font_size, image, x, sz)
         pygame.sprite.Sprite.__init__(self)
-        d = pygame.image.load(image).convert_alpha()
         self.current_animation_step = 1
         self.route = 1
         self.route_animate = 1
         self.route_animate_delay = 1
         self.animation_time = 1 * 6
         self.current_animation_time = 0
-        self.image_orig = d
+        self.image_orig = draw_text(image, button_text, font_size, x, sz)
         self.alpha = alpha
         self.func = func
         self.image = self.image_orig.copy()
@@ -291,7 +286,30 @@ class InputBox:
         pygame.draw.rect(canvas, self.color, self.rect2, 2)
 
 
-def draw_text(image, text, font_size, filename, x, sz):
+def draw_text(image, text, font_size, x, sz):
+    if len(text) == 1:
+        w = sz
+    else:
+        w = 5
+
+    # image = pygame.image.load('materials/img/buttons/main_button.png').convert_alpha()
+
+    image_path = 'materials/img/active/drawing_text.png'
+    pygame.image.save(image, image_path)
+
+    font = ImageFont.truetype("materials/data/font.ttf", font_size, encoding="unic")
+    canvas = Image.open(image_path)
+
+    draw = ImageDraw.Draw(canvas)
+    for i in range(len(text)):
+        draw.text((x, w + i * main_but_sizes[9]), text[i], button_color1, font)
+    canvas.save(image_path, "PNG")
+    image_and_text = pygame.image.load(image_path).convert_alpha()
+    remove(image_path)
+    return image_and_text
+
+
+def draw_text2(image, text, font_size, filename, x, sz):
     if len(text) == 1:
         w = sz
     else:
@@ -309,7 +327,7 @@ def draw_text(image, text, font_size, filename, x, sz):
 def set_factor_for_img(img_name):
     img = Image.open(img_name)
     x, y = img.size
-    if x != size[0] or y != size[1]:
+    if x != screen_size[0] or y != screen_size[1]:
         img_converted = img.resize(ret_sizes(x, y))
         img_converted.save(img_name)
 
@@ -382,43 +400,33 @@ def main_menu():
     split_sprites1_list = []
     rotating_sprites = []
     not_rotated_sprites = []
-    back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
-    back_rect = back.get_rect()
-    exit_buttonQ = Button(
-        "BT_E.png", ex_size_, [""], "NewButton.png", 161, lambda x: x, tr=0
-    )
-    button_exit = pygame.sprite.Group()
-    button_exit.add(exit_buttonQ)
-    back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
 
-    for i in not_rotated_images:
-        not_rotated_sprites.append(pygame.image.load(fg_dir + i).convert_alpha())
+    for i in not_rotated_ids:
+        not_rotated_sprites.append(figure_images[i])
 
-    for img in rotating_images:
-        rotating_sprites.append(pygame.image.load(fg_dir + img).convert_alpha())
+    for i in rotating_ids:
+        rotating_sprites.append(figure_images[i])
 
-    for i in range(0, len(split_double_sprites), 2):
+    for i in range(0, len(split_ids), 2):
         split_sprites1_list.append(
             (
-                pygame.image.load(fg_dir + split_double_sprites[i]).convert_alpha(),
-                sprites_to_colors[split_double_sprites[i]],
+                figure_images[split_ids[i]],
+                sprites_to_colors[split_ids[i]]
             )
         )
         split_sprites2_list.append(
-            pygame.image.load(fg_dir + split_double_sprites[i + 1]).convert_alpha()
+            figure_images[split_ids[i + 1]]
         )
     background_music.play()
     alpha = 161
     running = True
     tick = pygame.time.Clock()
-    d = "BS.png"
+    d = button_images[2]
     buttons_spr = pygame.sprite.Group()
-    # button_parameters = [d, (main_but_sizes[0], main_but_sizes[1]), None, "NewButton.png", alpha]
     button1 = Button(
         d,
         (main_but_sizes[0], main_but_sizes[1]),
         ["     играть"],
-        "NewButton.png",
         alpha,
         lambda: game(),
         animation_delay=1,
@@ -427,7 +435,6 @@ def main_menu():
         d,
         (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]),
         ["    уровень"],
-        "NewButton.png",
         alpha,
         lambda: level_settings(),
         animate_ind=8,
@@ -437,7 +444,6 @@ def main_menu():
         d,
         (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2),
         ["   обучение"],
-        "NewButton.png",
         alpha,
         lambda: training(),
         animate_ind=16,
@@ -447,7 +453,6 @@ def main_menu():
         d,
         (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
         ["  настройки"],
-        "NewButton.png",
         alpha,
         lambda: settings(),
         animate_ind=24,
@@ -495,8 +500,7 @@ def start_game(list__):
     global restart
     list_ = list__.copy()
     spr_start = pygame.sprite.Group()
-    im = pygame.image.load(fg_dir + "prime_image_Y.png").convert_alpha()
-    im.set_colorkey(BLACK)
+    im = figure_images[4]
     for i in list_:
         i.image = im
         spr_start.add(i)
@@ -528,7 +532,7 @@ def start_game(list__):
 
 def finish_game(false):
     global restart
-    im = pygame.image.load(fg_dir + "prime_image_Y.png").convert_alpha()
+    im = figure_images[5]
     im.set_colorkey(BLACK)
     im_size = im.get_size()
     false += 1
@@ -561,7 +565,7 @@ def finish_game(false):
                                 correct_choice_sound.play()
                                 i.image = im
                                 i.image_orig = im
-                                i.rect.size = im_size
+                                i.rect.screen_size = im_size
                             else:
                                 false_clicks += 1
                                 incorrect_choice_sound.play()
@@ -608,7 +612,7 @@ def game():
     ) = global_level
     set_width_and_height(w, h)
     set_w_h_butt(WIDTH_D - 6, HEIGHT_U - 50)
-    error_image = pygame.image.load(fg_dir + sc_im).convert_alpha()
+    error_image = figure_images[3].copy()
     scale_for_cycle = scale
     scale_j = scale_for_cycle // 20 + 1
     for j in range(scale_j):
@@ -645,12 +649,12 @@ def game():
         animated_spr_list.append(c)
 
     for i in range(rot_col):
-        if randrange(0, 250) == 0:
+        if not randrange(0, 5000):
             c = AnimatedFigure(
-                pygame.image.load(fg_dir + "FT_SPECIAL.png").convert_alpha()
+                figure_images[3].copy()
             )
         else:
-            d = randrange(0, len(rotating_images))
+            d = randrange(0, len(rotating_ids))
             c = AnimatedFigure(rotating_sprites[d])
         game_process_sprites.add(c)
 
@@ -731,10 +735,10 @@ def training():
     running = True
     tick = pygame.time.Clock()
     buttons_spr = pygame.sprite.Group()
-    button1 = Button("BT_E.png", (2, 2), [""], "BT_E.png", alpha, lambda: slide_show())
+    button1 = Button(button_images[0], (2, 2), [""], "exit_button.png", alpha, lambda: slide_show())
     button1.update = pass_function
     slide_show()
-    image = pygame.image.load("materials/img/BT_SLIDES.png").convert_alpha()
+    image = button_images[3]
     image.set_colorkey(BLACK)
     button1.image_orig = image
     button1.image = image
@@ -781,7 +785,7 @@ def slide_show():
         raise ZeroDivisionError
     else:
         back_ind += 1
-        slide = pygame.image.load(slides_list[back_ind]).convert_alpha()
+        slide = slides_images[back_ind]
 
 
 def set_level(level_for_set, boxes):
@@ -880,7 +884,7 @@ def level_settings():
         100 + (main_but_sizes[9] + 5) * 3,
         main_but_sizes[9],
         main_but_sizes[8],
-        f"ширина поля(max:{str(size[0])})",
+        f"ширина поля(max:{str(screen_size[0])})",
         doz_len=5,
     )
     input_box11 = InputBox(
@@ -888,7 +892,7 @@ def level_settings():
         100 + (main_but_sizes[9] + 5) * 4,
         main_but_sizes[9],
         main_but_sizes[8],
-        f"высота поля(max:{str(size[1])})",
+        f"высота поля(max:{str(screen_size[1])})",
         doz_len=4,
     )
     input_boxes = [
@@ -904,11 +908,11 @@ def level_settings():
         input_box10,
         input_box11,
     ]
+    d = button_images[1]
     button = Button(
-        "BSe.png",
+        d,
         (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
         ["сохранить"],
-        "NewButton.png",
         161,
         lambda: set_player_level(input_boxes),
         sz=17,
@@ -917,10 +921,9 @@ def level_settings():
         animation_delay=1,
     )
     button1 = Button(
-        "BSe.png",
+        d,
         (20, main_but_sizes[7]),
         ["   3 из 10"],
-        "NewButton.png",
         161,
         lambda: set_level(easy_level, input_boxes),
         sz=17,
@@ -929,10 +932,9 @@ def level_settings():
         animation_delay=1,
     )
     button2 = Button(
-        "BSe.png",
+        d,
         (20 + 300, main_but_sizes[7]),
         ["   5 из 10"],
-        "NewButton.png",
         161,
         lambda: set_level(normal_level, input_boxes),
         sz=17,
@@ -941,10 +943,9 @@ def level_settings():
         animation_delay=1,
     )
     button3 = Button(
-        "BSe.png",
+        d,
         (20 + 300 * 2, main_but_sizes[7]),
         ["   7 из 10"],
-        "NewButton.png",
         161,
         lambda: set_level(medium_level, input_boxes),
         sz=17,
@@ -953,10 +954,9 @@ def level_settings():
         animation_delay=1,
     )
     button4 = Button(
-        "BSe.png",
+        d,
         (20 + 300 * 3, main_but_sizes[7]),
         ["   9 из 10"],
-        "NewButton.png",
         161,
         lambda: set_level(hard_level, input_boxes),
         sz=17,
@@ -965,10 +965,9 @@ def level_settings():
         animation_delay=1,
     )
     button5 = Button(
-        "BSe.png",
+        d,
         (20 + 300 * 4, main_but_sizes[7]),
         ["   11 из 10"],
-        "NewButton.png",
         161,
         lambda: set_level(demon_level, input_boxes),
         sz=17,
@@ -977,10 +976,9 @@ def level_settings():
         animation_delay=1,
     )
     button6 = Button(
-        "BSe.png",
+        d,
         (20 + 300 * 4, main_but_sizes[6] * 6 + main_but_sizes[9] + 5),
         ["     свой"],
-        "NewButton.png",
         161,
         lambda: set_level(player_level, input_boxes),
         sz=17,
@@ -1016,10 +1014,10 @@ def level_settings():
             else:
                 button.target(0)
         with suppress(Exception):
-            if int(input_box10.text) > size[0] - 100:
-                input_box10.text = str(size[0] - 100)
-            if int(input_box11.text) > size[1] - 100:
-                input_box11.text = str(size[1] - 100)
+            if int(input_box10.text) > screen_size[0] - 100:
+                input_box10.text = str(screen_size[0] - 100)
+            if int(input_box11.text) > screen_size[1] - 100:
+                input_box11.text = str(screen_size[1] - 100)
         buttons_spr.update()
         button_exit.update()
         decorations.update()
@@ -1036,7 +1034,7 @@ def level_settings():
 
 
 def set_width_and_height(w, h):
-    w1, h1 = size[0] // 2, size[1] // 2
+    w1, h1 = screen_size[0] // 2, screen_size[1] // 2
     global WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U
     WIDTH_D, HEIGHT_D = w1 + w // 2, h1 + h // 2
     WIDTH_U, HEIGHT_U = w1 - w // 2, h1 - h // 2
@@ -1090,7 +1088,7 @@ def settings():
     alpha = 161
     running = True
     tick = pygame.time.Clock()
-    d = "BS.png"
+    d = 2
     buttons_spr = pygame.sprite.Group()
     button1 = Button(
         d,
@@ -1102,32 +1100,32 @@ def settings():
     )
     button3 = MiniButton(
         (main_but_sizes[5], main_but_sizes[6] * 3 - 2),
-        "materials/img/Style/MusicControl/music_control_minus.png",
+        "materials/img/music_control/music_control_minus.png",
         alpha,
         lambda: turn_down_volume(),
     )
     button4 = MiniButton(
         (main_but_sizes[4], main_but_sizes[6] * 3 - 2),
-        "materials/img/Style/MusicControl/music_control_plus.png",
+        "materials/img/music_control/music_control_plus.png",
         alpha,
         lambda: turn_up_volume(),
     )
     button2 = pygame.sprite.Sprite()
     draw_text(
-        "materials/img/Style/buttons/BS.png",
+        "materials/img/buttons/main_button.png",
         ["      звук"],
         54,
-        "materials/img/Style/buttons/NewButton.png",
+        "materials/img/buttons/NewButton.png",
         30,
         30,
     )
     button2.image = pygame.image.load(
-        "materials/img/Style/buttons/NewButton.png"
+        "materials/img/buttons/NewButton.png"
     ).convert_alpha()
     button2.rect = button2.image.get_rect()
     button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
     button2_ = pygame.sprite.Group(button2)
-    main_settings_buttons = [button3, button4, button1]
+    main_settings_buttons = [button1, button3, button4]
     for button in main_settings_buttons:
         buttons_spr.add(button)
     while running:
@@ -1166,63 +1164,69 @@ def settings():
 
 
 def set_style():
-    global bt_dir, bg_dir, fg_dir, colors, sprites_to_colors, decorations, size
+    global bt_dir, bg_dir, fg_dir, colors, sprites_to_colors, decorations, screen_size
     decorations = pygame.sprite.Group()
     for i in range(2):
         decorations.add(
             set_speed_for_decoration_object(
                 Figure(
-                    pygame.image.load(fg_dir + "/ball2.png").convert_alpha(),
-                    (0, size[0]),
-                    (0, size[1]),
+                    figure_images[0],
+                    (0, screen_size[0]),
+                    (0, screen_size[1]),
                 )
             )
         )
-    animated_figures_names = [
-        "/FS_2_2.png",
-        "/FS_2.png",
-        "/FT4.png",
-        "/prime_image_B.png",
-        "/FT3.png",
-        "/FT2.png",
-    ]
-    for i in range(5):
+    animated_figures_ids = [1, 5, 6, 7, 8, 9]
+
+    for i in range(6):
         for j in range(2):
             decorations.add(
                 set_speed_for_decoration_object(
                     AnimatedFigure(
-                        pygame.image.load(
-                            fg_dir + animated_figures_names[i]
-                        ).convert_alpha(),
-                        (0, size[0]),
-                        (0, size[1]),
+                        figure_images[i],
+                        (0, screen_size[0]),
+                        (0, screen_size[1]),
                     )
                 )
             )
-    if not randrange(25):
+    if not randrange(500):
         decorations.add(
             set_speed_for_decoration_object(
                 AnimatedFigure(
-                    pygame.image.load(fg_dir + "/FT_SPECIAL.png").convert_alpha(),
-                    (0, size[0]),
-                    (0, size[1]),
+                    figure_images[2],
+                    (0, screen_size[0]),
+                    (0, screen_size[1]),
                 )
             )
         )
-    energy_image = pygame.image.load(fg_dir + "/score_chunk1.png").convert_alpha()
-    for i in range(5):
+    for i in range(6):
         decorations.add(
             set_speed_for_decoration_object(
-                AnimatedFigure(energy_image, (0, size[0]), (0, size[1]))
+                AnimatedFigure(figure_images[3].copy(), (0, screen_size[0]), (0, screen_size[1]))
             )
         )
     pass
 
 
+def images_resize(dir, screen_size, attitudes_filename):
+    with open(attitudes_filename, encoding="utf8") as resize_images_file:
+        resize_images = json.load(resize_images_file)
+    images = []
+    for image in resize_images:
+        final_image_size = list(map(lambda x: x * screen_size[0], resize_images[image]))
+        final_image_size[0] = int(final_image_size[0]) + 1
+        final_image_size[1] = int(final_image_size[1]) + 1
+        print(image, final_image_size)
+        resized_image = pygame.image.load(dir + image).convert_alpha()
+        resized_image = pygame.transform.scale(resized_image, final_image_size)
+        images.append(resized_image)
+    return images
+
+
 if __name__ == "__main__":
     volume = 0
     level = 0
-    with open("materials/data.csv", encoding="utf8") as csv_file:
+    with open("materials/data/data.csv", encoding="utf8") as csv_file:
         reader = csv.reader(csv_file, delimiter=";", quotechar='"')
         for index, q in enumerate(reader):
             if q[0] == "":
@@ -1247,32 +1251,59 @@ if __name__ == "__main__":
     )
     speed_factor = 1
 
-    rotating_images = ["FT4.png"]
-    sc_im = "score_chunk1.png"
-    split_double_sprites = ["FT2.png", "FT3.png", "FS_2.png", "FS_2_2.png"]
-    animated_spr_list, split_sprites1_list, split_sprites2_list, rotating_sprites = (
-        [],
-        [],
-        [],
-        [],
-    )
-    not_rotated_images = ["ball2.png"]
-    not_rotated_sprites = []
-    game_process_sprites = pygame.sprite.Group()
-
-    bt_dir = "materials/img/Style/buttons/"
-    bg_dir = "materials/img/Style/backgrounds/"
-    fg_dir = "materials/img/Style/figures/"
-    put = "materials/Style"
+    # ----------------------
+    #        INITS
+    # ----------------------
 
     pygame.init()
     pygame.mixer.init()
+    pygame.display.init()
 
-    pygame.mouse.set_visible(False)
-    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png"))
-    pygame.display.set_caption("Title", "materials/icon/active_exe_icon.png")
+    # ----------------------
+    #       MONITOR
+    # ----------------------
 
-    cursor = pygame.image.load("materials/img/Style/cursor/cursor.png")
+    active_monitor = get_monitors()[0]
+    screen_size = (active_monitor.width, active_monitor.height)
+
+    screen = pygame.display.set_mode(screen_size)
+    pygame.display.set_caption("Eyesight Up Game", "materials/icon/active_exe_icon.png")
+    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
+    # pygame.mouse.set_visible(False)
+
+    # ----------------------
+    #     IMAGE RESIZING
+    # ----------------------
+
+    bt_dir = "materials/img/buttons/"
+    bg_dir = "materials/img/backgrounds/"
+    fg_dir = "materials/img/figures/"
+    mc_dir = "materials/img/music_control/"
+    cur_dir = "materials/img/cursor/"
+    sl_dir = "materials/img/slides/"
+
+    background_images = images_resize(bg_dir, screen_size, "materials/data/attitudes/background_attitudes.json")
+    button_images = images_resize(bt_dir, screen_size, "materials/data/attitudes/button_attitudes.json")
+    cursor_image = images_resize(cur_dir, screen_size, "materials/data/attitudes/cursor_attitude.json")
+    figure_images = images_resize(fg_dir, screen_size, "materials/data/attitudes/figure_attitudes.json")
+    music_control_images = images_resize(mc_dir, screen_size, "materials/data/attitudes/music_control_attitudes.json")
+    slides_images = images_resize(sl_dir, screen_size, "materials/data/attitudes/slide_attitudes.json")
+
+    # ----------------------
+
+    rotating_ids = [5]
+    split_ids = [6, 8, 7, 9]
+    animated_spr_list = []
+    split_sprites1_list = []
+    split_sprites2_list = []
+    rotating_sprites = []
+    not_rotated_ids = [0]
+    not_rotated_sprites = []
+    game_process_sprites = pygame.sprite.Group()
+
+    put = "materials/Style"
+
+    cursor = cursor_image[0]
 
     start_sound = pygame.mixer.Sound("materials/sounds/start_game_sound.ogg")
     start_sound.set_volume(0.7)
@@ -1299,9 +1330,8 @@ if __name__ == "__main__":
 
     decorations = pygame.sprite.Group()
     set_volume()
-    FONT = pygame.font.Font("materials/font.ttf", 32)
-    size = [GetSystemMetrics(0), GetSystemMetrics(1)]
-    coefficients = (1536 / size[0], 864 / size[1])
+    FONT = pygame.font.Font("materials/data/font.ttf", 32)
+    coefficients = (1536 / screen_size[0], 864 / screen_size[1])
     main_but_sizes = [
         ret_size_x(570),
         ret_size_y(132),
@@ -1315,12 +1345,9 @@ if __name__ == "__main__":
         ret_size_y(45),
     ]
     ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
-    screen = pygame.display.set_mode(size)
-    pygame.display.set_caption("Eyesight Up Game")
-    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
     clock = pygame.time.Clock()
     set_style()
-    back = pygame.image.load(bg_dir + "g3.png").convert_alpha()
+    back = background_images[0]
     back_rect = back.get_rect()
     colors = colorsS
     sprites_to_colors = sprites_to_colorsS
@@ -1331,7 +1358,7 @@ if __name__ == "__main__":
     demon = 5
     COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
     COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
-    FONT2 = pygame.font.Font("materials/font.ttf", main_but_sizes[8])
+    FONT2 = pygame.font.Font("materials/data/font.ttf", main_but_sizes[8])
     global_timer = 0
     easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
     normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
@@ -1340,16 +1367,14 @@ if __name__ == "__main__":
     demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
     global_level = level
     restart = False
-    music_image = pygame.image.load(
-        "materials/img/music_control_count_image.png"
-    ).convert_alpha()
+    music_image = music_control_images[0]
     exit_buttonQ = MiniButton(
-        (ret_sizes(1481, 5)), "materials/img/Style/buttons/BT_E.png", 161, lambda x: x
+        (ret_sizes(1481, 5)), "materials/img/buttons/exit_button.png", 161, lambda x: x
     )
     button_exit = pygame.sprite.Group()
     button_exit.add(exit_buttonQ)
     slides_list = [
-        f"materials/img/Style/slides/{i}" for i in listdir("materials/img/Style/slides")
+        f"materials/img/slides/{i}" for i in listdir("materials/img/slides")
     ]
     slide = None
     back_ind = -1
@@ -1358,7 +1383,7 @@ if __name__ == "__main__":
     music_volume_sprites = pygame.sprite.Group()
     help_volume()
 
-    back1 = pygame.image.load(bg_dir + "g_a.png").convert_alpha()
+    back1 = pygame.image.load(bg_dir + "flash_background.png").convert_alpha()
     main_run = True
 
     animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
@@ -1373,11 +1398,11 @@ if __name__ == "__main__":
     while main_run:
         with suppress(Exception):
             main_menu()
-    with open("materials/data.csv", "w", newline="", encoding="utf8") as csv_file:
+    with open("materials/data/data.csv", "w", newline="", encoding="utf8") as csv_file:
         writer = csv.writer(
             csv_file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL
         )
         writer.writerow([*global_level])
         writer.writerow([*player_level, volume, global_speed, global_speed_factor])
     with suppress(Exception):
-        remove("""materials/img/Style/buttons/NewButton.png""")
+        remove("""materials/img/buttons/NewButton.png""")

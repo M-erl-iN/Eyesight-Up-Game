@@ -1,8 +1,10 @@
 # EyesightUpGame
+import copy
 import csv
 import json
 import time
 from contextlib import suppress
+from math import sqrt
 from os import listdir, remove
 from random import choice, randrange, sample
 from webbrowser import open as open_site
@@ -11,6 +13,7 @@ import pygame
 from PIL import Image, ImageDraw, ImageFont
 from screeninfo import get_monitors
 
+from k import test
 from materials.data.color_information import *
 
 
@@ -30,23 +33,33 @@ class Figure(pygame.sprite.Sprite):
         self.rect.x = randrange(width[0], width[1] - self.rect.width)
         self.rect.y = randrange(height[0], height[1] - self.rect.height)
         self.board_sizes = (width, height)
-        self.speedy = rand_speed()
+        self.speed_y = rand_speed()
         self.speed_x = rand_speed()
-        self.speeds_for_true_rotate = (abs(self.speed_x), abs(self.speedy))
+        self.speeds_for_true_rotate = (abs(self.speed_x), abs(self.speed_y))
         self.became_prime = 0
 
     def update(self):
         #  обновление позиций фигур
         self.rect.x += self.speed_x
-        self.rect.y += self.speedy
+        self.rect.y += self.speed_y
         if self.rect.top < self.board_sizes[1][0]:
-            self.speedy = self.speeds_for_true_rotate[1]
+            self.speed_y = self.speeds_for_true_rotate[1]
         elif self.rect.bottom > self.board_sizes[1][1]:
-            self.speedy = -self.speeds_for_true_rotate[1]
+            self.speed_y = -self.speeds_for_true_rotate[1]
         if self.rect.left < self.board_sizes[0][0]:
             self.speed_x = self.speeds_for_true_rotate[0]
         elif self.rect.right > self.board_sizes[0][1]:
             self.speed_x = -self.speeds_for_true_rotate[0]
+
+
+class TextSprite(pygame.sprite.Sprite):
+    def __init__(self, text, font, x, y):
+        pygame.sprite.Sprite.__init__(self)
+        font = pygame.font.Font(None, numbers_y["text_font_size"])
+        self.image = font.render(text)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
 
 
 class AnimatedFigure(Figure):
@@ -80,47 +93,220 @@ class AnimatedFigure(Figure):
 
 
 class SplitAnimatedFigure(AnimatedFigure):
-    def __init__(self, image, spl_img, lep_count, dif, color1, color2):
-        #  назначение всех нужных переменных
+    def __init__(self, image, chunk, chunks_count, dif, inside_color, outside_color):
         super(SplitAnimatedFigure, self).__init__(image)
-        self.split_obj_list = [AnimatedFigure(spl_img) for _ in range(lep_count)]
-        self.colors = (color1, color2)
-        if dif > medium:
-            self.dif = 1
-        else:
-            self.dif = 2
+        self.chunks_count = chunks_count
+        self.chunk = chunk
+        self.inside_color, self.outside_color = inside_color, outside_color
+        self.max_flash_radius = max(self.rect.width, self.rect.height) // 2
+        self.flash_chance = 300 if dif > medium else 700
+        self.flash_flag = False
+        self.flash_radius = 0
+        self.segmentation_flag = False
+        self.disflash_image = pygame.surface.Surface(
+            (self.max_flash_radius * 2 + 20, self.max_flash_radius * 2 + 20)
+        )
+        self.disflash_image.set_colorkey((0, 0, 0, 0))
 
-    def split_(self):
-        #  шанс разделения на несколько фигур
-        if self.dif >= medium:
-            a, b = 200, main_but_sizes[9] + 50
-        else:
-            a, b = 400, 1000
-        if randrange(0, randrange(a, b)) == 0:
-            return 1
-        else:
-            return 0
+    def update(self):
+        super().update()
+        if self.flash_flag:
+            if not self.segmentation_flag:
+                if self.flash_radius < self.max_flash_radius:
+                    new_flash_radius = max(self.rect.width, self.rect.height) // 2
+                    if new_flash_radius > self.max_flash_radius:
+                        self.max_flash_radius = new_flash_radius
+                    self.flash()
+                elif self.flash_radius < self.max_flash_radius + 1:
+                    flash_image = pygame.surface.Surface(
+                        (self.max_flash_radius * 2 + 20, self.max_flash_radius * 2 + 20)
+                    )
+                    flash_image.set_colorkey((0, 0, 0, 0))
+                    self.image = flash_image
+                    x, y, w, h = (
+                        self.rect.x,
+                        self.rect.y,
+                        self.rect.width,
+                        self.rect.height,
+                    )
+                    self.rect = self.image.get_rect()
+                    self.rect.x, self.rect.y = (
+                        x - (self.rect.width - w) // 2,
+                        y - (self.rect.height - h) // 2,
+                    )
+                    self.flash()
+                elif self.flash_radius < self.max_flash_radius + 10:
+                    self.flash()
+                else:
+                    self.disflash_image = pygame.surface.Surface(
+                        (self.max_flash_radius * 2 + 20, self.max_flash_radius * 2 + 20)
+                    )
+                    self.disflash_image.set_colorkey((0, 0, 0, 0))
+                    self.segmentation()
+                    self.segmentation_flag = True
+            elif self.segmentation_flag:
+                if self.flash_radius > 0:
+                    self.disflash()
+                else:
+                    self.kill()
+        elif self.get_segmentation_chance() and not self.segmentation_flag:
+            self.rotate = self.rotate_delete
+            self.flash_flag = True
+
+    def rotate_delete(self):
+        pass
+
+    def get_segmentation_chance(self):
+        return not randrange(0, self.flash_chance)
 
     def segmentation(self):
-        #  разделение фигур без повторов
-        for i in self.split_obj_list:
+        for i in range(self.chunks_count):
+            i = copy.copy(self.chunk)
             i.rect.x, i.rect.y = self.rect.x, self.rect.y
             i.speed_x = rand_speed()
-            i.speedy = rand_speed()
+            i.speed_y = rand_speed()
             i.became_prime = self.became_prime
-        spl_obj = self.split_obj_list
-        self.kill()
-        for i in spl_obj:
             game_process_sprites.add(i)
+        game_process_sprites.remove(self)
+        game_process_sprites.add(self)
 
-    def flash(self, i):
-        #  создание вспышки
-        x, y = self.rect.x + (self.rect.width / 2), self.rect.y + (self.rect.height / 2)
-        pygame.draw.circle(screen, self.colors[0], (x, y), i // 2 + 20)
-        pygame.draw.circle(screen, self.colors[1], (x, y), i // 2 + 20, 5)
+    def flash(self):
+        self.flash_radius += 1
+        self.draw_circules()
+
+    def draw_circules(self):
+        x, y = self.rect.width // 2, self.rect.height // 2
+
+        gradient_len = int(self.flash_radius // 2)
+
+        pygame.draw.circle(self.image, self.inside_color, (x, y), gradient_len)
+
+        r, g, b = self.inside_color
+        r1, g1, b1 = self.outside_color
+        r_, g_, b_ = (
+            (r1 - r) / self.max_flash_radius,
+            (g1 - g) / self.max_flash_radius,
+            (b1 - b) / self.max_flash_radius,
+        )
+        for q in range(1, gradient_len):
+            new_color = r + int(r_ * q), g + int(g_ * q), b + int(b_ * q)
+            pygame.draw.circle(self.image, new_color, (x, y), gradient_len + q, 2)
+
+    def disflash(self):
+        self.flash_radius -= 1
+        self.disflash_image.fill((0, 0, 0))
+        self.disflash_image.set_colorkey((0, 0, 0, 0))
+        self.image = self.disflash_image
+        x, y = self.rect.x, self.rect.y
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+        self.draw_circules()
 
 
-#  родительский класс кнопки
+class Slime(pygame.sprite.Sprite):
+    def __init__(self, image, width=None, height=None):
+        if width is None:
+            width = (WIDTH_U, WIDTH_D)
+        if height is None:
+            height = (HEIGHT_U, HEIGHT_D)
+        pygame.sprite.Sprite.__init__(self)
+        image.set_colorkey((0, 0, 0, 0))
+        self.image_orig = image
+        self.image = self.image_orig.copy()
+        self.rect = self.image.get_rect()
+
+        self.rect.x = randrange(*width)
+        self.rect.y = randrange(*height)
+
+        self.x, self.y = self.rect.x, self.rect.y
+
+        self.borders = (
+            (width[0], width[1] - self.rect.width),
+            (height[0], height[1] - self.rect.height),
+        )
+
+        self.start_pos = self.rect.x, self.rect.y
+
+        self.last_wall = 5
+
+        self.speed_x, self.speed_y, self.finish_pos, self.middle_pos = test(
+            self.borders[0],
+            self.borders[1],
+            self.start_pos,
+            global_speed,
+            self.last_wall,
+        )
+        self.middle_x, self.middle_y = abs(self.start_pos[0] - self.middle_pos[0]), abs(
+            self.start_pos[1] - self.middle_pos[1]
+        )
+
+        self.speed_flag_x = True
+        self.speed_flag_y = True
+
+        self.k = 1 + 0.0125 * sqrt(global_speed_factor * global_speed)
+
+        self.became_prime = 0
+
+    def update(self):
+        self.board_hit()
+        if self.speed_flag_x:
+            if not (
+                self.x - abs(self.speed_x)
+                < self.middle_pos[0]
+                < self.x + abs(self.speed_x)
+            ):
+                self.speed_x *= self.k
+            else:
+                self.speed_flag_x = False
+        else:
+            self.speed_x /= self.k
+        if self.speed_flag_y:
+            if not (
+                self.y - abs(self.speed_y)
+                < self.middle_pos[1]
+                < self.y + abs(self.speed_y)
+            ):
+                self.speed_y *= self.k
+            else:
+                self.speed_flag_y = False
+        else:
+            self.speed_y /= self.k
+
+        self.x += self.speed_x
+        self.y += self.speed_y
+
+        self.rect.x, self.rect.y = self.x, self.y
+
+    def board_hit(self):
+        w0, h0 = self.x < self.borders[0][0], self.y < self.borders[1][0]
+        w1, h1 = self.x > self.borders[0][1], self.y > self.borders[1][1]
+        if w0 or w1 or h0 or h1:
+            if w0:
+                self.last_wall = 1
+                self.x = self.borders[0][0]
+            if w1:
+                self.last_wall = 3
+                self.x = self.borders[0][1]
+            if h0:
+                self.last_wall = 2
+                self.y = self.borders[1][0]
+            if h1:
+                self.last_wall = 4
+                self.y = self.borders[1][1]
+            self.rect.x, self.rect.y = self.x, self.y
+            self.start_pos = (self.rect.x, self.rect.y)
+            self.speed_flag_x = True
+            self.speed_flag_y = True
+            self.speed_x, self.speed_y, self.finish_pos, self.middle_pos = test(
+                self.borders[0],
+                self.borders[1],
+                self.start_pos,
+                global_speed,
+                self.last_wall,
+            )
+            self.image = self.image_orig
+
+
 class Button(pygame.sprite.Sprite):
     def __init__(
         self,
@@ -146,7 +332,7 @@ class Button(pygame.sprite.Sprite):
         self.route_animate_delay = 1
         self.animation_time = 1 * 6
         self.current_animation_time = 0
-        self.image_orig = draw_text(image, button_text, font_size, x, sz)
+        self.image_orig = draw_text(image, button_text[0], font_size_for_main_buttons)
         self.alpha = alpha
         self.func = func
         self.image = self.image_orig.copy()
@@ -248,7 +434,7 @@ class InputBox:
         self.rect2[1] += 7
         self.color = COLOR_INACTIVE
         self.parameter = FONT2.render(parameter, True, COLOR_ACTIVE)
-        self.par_x = self.parameter.get_size()[0] + main_but_sizes[8]
+        self.par_x = self.parameter.get_size()[0] + 24
         self.rect2[0] += self.par_x
         self.text = ""
         self.active = False
@@ -276,51 +462,51 @@ class InputBox:
 
     def update(self):
         self.txt_surface = FONT2.render(self.text, True, self.color)
-        width = max(main_but_sizes[9], self.txt_surface.get_width() + 5)
+        width = max(
+            numbers_x["input_box_width"],
+            self.txt_surface.get_width() + int(self.rect.w / 5),
+        )
         self.rect2.w = width
         self.rect.w = width
 
     def draw(self, canvas):
-        canvas.blit(self.parameter, (self.rect.x + 5, self.rect.y + 5))
-        canvas.blit(self.txt_surface, (self.rect.x + 5 + self.par_x, self.rect.y + 5))
+        canvas.blit(
+            self.parameter,
+            (self.rect.x + int(self.rect.w / 5), self.rect.y + int(self.rect.w / 5)),
+        )
+        canvas.blit(
+            self.txt_surface,
+            (
+                self.rect.x + int(self.rect.w / 5) + self.par_x,
+                self.rect.y + int(self.rect.w / 5),
+            ),
+        )
         pygame.draw.rect(canvas, self.color, self.rect2, 2)
 
 
-def draw_text(image, text, font_size, x, sz):
-    if len(text) == 1:
-        w = sz
-    else:
-        w = 5
-
-    # image = pygame.image.load('materials/img/buttons/main_button.png').convert_alpha()
-
-    image_path = 'materials/img/active/drawing_text.png'
+def draw_text(image, text, font_size):
+    image_path = "test/drawing_text.png"
+    image_size = image.get_size()
     pygame.image.save(image, image_path)
 
-    font = ImageFont.truetype("materials/data/font.ttf", font_size, encoding="unic")
-    canvas = Image.open(image_path)
+    image_pil = Image.open(image_path)
+    draw = ImageDraw.Draw(image_pil)
 
-    draw = ImageDraw.Draw(canvas)
-    for i in range(len(text)):
-        draw.text((x, w + i * main_but_sizes[9]), text[i], button_color1, font)
-    canvas.save(image_path, "PNG")
+    font = ImageFont.truetype("materials/data/UZSans-Medium.ttf", font_size)
+
+    text_size = draw.textsize(text, font)
+
+    draw.text(
+        ((image_size[0] - text_size[0]) / 2, (image_size[1] - text_size[1]) / 2),
+        text,
+        font=font,
+    )
+
+    image_pil.save(image_path)
+
     image_and_text = pygame.image.load(image_path).convert_alpha()
     remove(image_path)
     return image_and_text
-
-
-def draw_text2(image, text, font_size, filename, x, sz):
-    if len(text) == 1:
-        w = sz
-    else:
-        w = 5
-    font = ImageFont.truetype("materials/font.ttf", font_size, encoding="unic")
-    canvas = Image.open(image)
-
-    draw = ImageDraw.Draw(canvas)
-    for i in range(len(text)):
-        draw.text((x, w + i * main_but_sizes[9]), text[i], button_color1, font)
-    canvas.save(filename, "PNG")
 
 
 #  коэффициент перезаписи изображений под пользовательский экран
@@ -357,7 +543,7 @@ def help_for_set_speed(segment_start, segment_end):
 
 def set_speed_for_decoration_object(obj):
     speeds = [help_for_set_speed(-2, 3) for _ in range(2)]
-    obj.speed_x, obj.speedy = speeds
+    obj.speed_x, obj.speed_y = speeds
     obj.speeds_for_true_rotate = (abs(speeds[0]), abs(speeds[1]))
     return obj
 
@@ -386,16 +572,16 @@ def in_coordinates_rect(rect, x, y):
 
 
 def in_image(game_object, x1, y1):
-    if in_coordinates_rect(game_object.rect, x1, y1):
-        x, y = x1 - game_object.rect.x, y1 - game_object.rect.y
+    rect = game_object.rect
+    if in_coordinates_rect(rect, x1, y1):
+        x, y = x1 - rect.x, y1 - rect.y
         pixel = game_object.image.get_at((x, y))
         return pixel[3] != 0
     return 0
 
 
 def main_menu():
-    global back, back_rect, exit_buttonQ, button_exit, back1, split_sprites1_list, split_sprites2_list,\
-        rotating_sprites, not_rotated_sprites, decorations
+    global back, back_rect, exit_buttonQ, button_exit, back1, split_sprites1_list, split_sprites2_list, rotating_sprites, not_rotated_sprites, decorations
     split_sprites2_list = []
     split_sprites1_list = []
     rotating_sprites = []
@@ -409,50 +595,45 @@ def main_menu():
 
     for i in range(0, len(split_ids), 2):
         split_sprites1_list.append(
-            (
-                figure_images[split_ids[i]],
-                sprites_to_colors[split_ids[i]]
-            )
+            (figure_images[split_ids[i]], sprites_to_colors[split_ids[i]])
         )
-        split_sprites2_list.append(
-            figure_images[split_ids[i + 1]]
-        )
+        split_sprites2_list.append(figure_images[split_ids[i + 1]])
     background_music.play()
     alpha = 161
     running = True
     tick = pygame.time.Clock()
-    d = button_images[2]
     buttons_spr = pygame.sprite.Group()
+
     button1 = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1]),
-        ["     играть"],
+        button_images[2],
+        (main_button_x, main_button_start_y),
+        ["играть"],
         alpha,
         lambda: game(),
         animation_delay=1,
     )
     button2 = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2]),
-        ["    уровень"],
+        button_images[2],
+        (main_button_x, main_button_start_y + main_button_step_y),
+        ["уровень"],
         alpha,
         lambda: level_settings(),
         animate_ind=8,
         animation_delay=1,
     )
     button3 = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 2),
-        ["   обучение"],
+        button_images[2],
+        (main_button_x, main_button_start_y + main_button_step_y * 2),
+        ["обучение"],
         alpha,
         lambda: training(),
         animate_ind=16,
         animation_delay=1,
     )
     button4 = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
-        ["  настройки"],
+        button_images[2],
+        (main_button_x, main_button_start_y + main_button_step_y * 3),
+        ["настройки"],
         alpha,
         lambda: settings(),
         animate_ind=24,
@@ -532,7 +713,7 @@ def start_game(list__):
 
 def finish_game(false):
     global restart
-    im = figure_images[5]
+    im = figure_images[4].copy()
     im.set_colorkey(BLACK)
     im_size = im.get_size()
     false += 1
@@ -593,8 +774,7 @@ def finish_game(false):
 
 
 def game():
-    global game_process_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprites,\
-        game_music, global_level, global_speed_factor, volume, global_timer, global_speed
+    global game_process_sprites, animated_spr_list, split_sprites1_list, split_sprites2_list, errors_col_sprites, game_music, global_level, global_speed_factor, volume, global_timer, global_speed
     game_process_sprites, animated_spr_list = pygame.sprite.Group(), []
     errors_col_sprites = pygame.sprite.Group()
     (
@@ -602,6 +782,7 @@ def game():
         not_rot_col,
         rot_col,
         spl_rot_col,
+        slime_col,
         prime_col,
         scale,
         global_timer,
@@ -611,21 +792,29 @@ def game():
         h,
     ) = global_level
     set_width_and_height(w, h)
-    set_w_h_butt(WIDTH_D - 6, HEIGHT_U - 50)
+    set_w_h_butt(
+        WIDTH_D - numbers_x["width_exit_button"],
+        HEIGHT_U - numbers_y["height_exit_button"],
+    )
     error_image = figure_images[3].copy()
     scale_for_cycle = scale
-    scale_j = scale_for_cycle // 20 + 1
+    scale_j = scale_for_cycle // 16 + 1
     for j in range(scale_j):
-        if scale_for_cycle > 20:
-            scale_i = 20
+        if scale_for_cycle > 16:
+            scale_i = 16
         else:
-            scale_i = scale % 20
-            if scale_for_cycle % 20 == 0 and scale_for_cycle != 0:
-                scale_i = 20
+            scale_i = scale % 16
+            if scale_for_cycle % 16 == 0 and scale_for_cycle != 0:
+                scale_i = 16
         for i in range(scale_i):
             d = pygame.sprite.Sprite()
             d.image = error_image
-            d.rect = [WIDTH_D + 10 + j * 30, HEIGHT_U + 55 + 30 * i, 25, 25]
+            d.rect = [
+                WIDTH_D + j * numbers_y["error_y"],
+                HEIGHT_U + numbers_y["error_y"] * i,
+                error_image.get_width(),
+                error_image.get_height(),
+            ]
             errors_col_sprites.add(d)
         scale_for_cycle -= scale_i
     game_finished = False
@@ -640,7 +829,7 @@ def game():
         a = split_sprites2_list[d]
         c = SplitAnimatedFigure(
             split_sprites1_list[d][0],
-            a,
+            AnimatedFigure(a),
             1 + randrange(3),
             difficulty,
             *split_sprites1_list[d][1],
@@ -650,14 +839,14 @@ def game():
 
     for i in range(rot_col):
         if not randrange(0, 5000):
-            c = AnimatedFigure(
-                figure_images[3].copy()
-            )
+            c = AnimatedFigure(figure_images[3].copy())
         else:
             d = randrange(0, len(rotating_ids))
             c = AnimatedFigure(rotating_sprites[d])
         game_process_sprites.add(c)
 
+    for i in range(slime_col):
+        game_process_sprites.add(Slime(figure_images[0]))
     background_music.stop()
     game_music = pygame.mixer.Sound(choice(game_music_list))
     game_music.set_volume(volume)
@@ -665,7 +854,6 @@ def game():
     a1 = sample(list(game_process_sprites), prime_col)
 
     starting = start_game(a1)
-    sprites = {}
     running = True
     timer = time.time()
     global restart
@@ -676,7 +864,7 @@ def game():
             for event in pygame.event.get():
                 running = event_test_exit(event)
                 if not running:
-                    game_process_sprites, animated_spr_list = pygame.sprite.Group(), []
+                    game_process_sprites = pygame.sprite.Group()
                     errors_col_sprites = pygame.sprite.Group()
                     game_music.stop()
                     return
@@ -692,24 +880,6 @@ def game():
                 screen.blit(back, back_rect)
                 game_process_sprites.draw(screen)
                 errors_col_sprites.draw(screen)
-                for i in range(len(animated_spr_list)):
-                    if animated_spr_list[i].split_():
-                        sprites[animated_spr_list[i]] = 0
-                sprites_copy = sprites.copy()
-                for i in sprites_copy.keys():
-                    if sprites[i] > 40:
-                        if difficulty > normal:
-                            a = randrange(3)
-                            if a:
-                                i.segmentation()
-                                del animated_spr_list[animated_spr_list.index(i)]
-                        else:
-                            i.segmentation()
-                            del animated_spr_list[animated_spr_list.index(i)]
-                        del sprites[i]
-                    else:
-                        i.flash(sprites[i])
-                        sprites[i] += 1
                 button_exit.update()
                 button_exit.draw(screen)
                 screen.blit(cursor, (pygame.mouse.get_pos()))
@@ -735,8 +905,9 @@ def training():
     running = True
     tick = pygame.time.Clock()
     buttons_spr = pygame.sprite.Group()
-    button1 = Button(button_images[0], (2, 2), [""], "exit_button.png", alpha, lambda: slide_show())
-    button1.update = pass_function
+    button1 = Button(
+        button_images[3], (16, 24), [""], alpha, lambda: slide_show(), animation_delay=1
+    )
     slide_show()
     image = button_images[3]
     image.set_colorkey(BLACK)
@@ -778,7 +949,7 @@ def slide_show():
         global_speed = 2
         global_speed_factor = 2
         gl1 = global_level
-        global_level = (1, 2, 2, 0, 1, 40, 10, 2, 2, *ret_sizes(480, 600))
+        global_level = (1, 2, 2, 0, 1, 1, 40, 10, 2, 2, *ret_sizes(480, 600))
         game()
         global_level = gl1
         back_ind = -1
@@ -788,12 +959,9 @@ def slide_show():
         slide = slides_images[back_ind]
 
 
-def set_level(level_for_set, boxes):
+def set_level(level_for_set):
     global global_level
     global_level = level_for_set
-    boxes[0].text = "-" if global_level[0] < medium else "+"
-    for i in range(1, len(boxes)):
-        boxes[i].text = str(global_level[i])
 
 
 def get_player_level(boxes):
@@ -811,223 +979,158 @@ def set_player_level(boxes):
         player_current_level[0] = normal if boxes[0].text == "-" else hard
         for i in range(1, len(player_level)):
             player_current_level[i] = int(boxes[i].text)
-        set_level(player_current_level, boxes)
+        set_level(player_current_level)
         player_level = player_current_level
 
 
 def level_settings():
     global decorations
-    input_box1 = InputBox(100, 100, main_but_sizes[9], main_but_sizes[8], "шары")
-    input_box2 = InputBox(
-        100,
-        100 + main_but_sizes[9] + 5,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "анифиры",
-    )
-    input_box3 = InputBox(
-        100,
-        100 + (main_but_sizes[9] + 5) * 2,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "взрывные анифиры",
-    )
-    input_box4 = InputBox(
-        100,
-        100 + (main_but_sizes[9] + 5) * 3,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "ложные взрывы(+/-)",
-        doz="-+",
-        doz_len=1,
-    )
-    input_box5 = InputBox(
-        100,
-        100 + (main_but_sizes[9] + 5) * 4,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "цели",
-    )
-    input_box6 = InputBox(
-        100,
-        100 + (main_but_sizes[9] + 5) * 5,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "заряды",
-    )
-    input_box7 = InputBox(
-        main_but_sizes[6] * 6,
-        100,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "время раунда",
-        doz_len=3,
-    )
-    input_box8 = InputBox(
-        main_but_sizes[6] * 6,
-        100 + main_but_sizes[9] + 5,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "скорость",
-        doz_len=3,
-    )
-    input_box9 = InputBox(
-        main_but_sizes[6] * 6,
-        100 + (main_but_sizes[9] + 5) * 2,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        "коэффициент скорости",
-        doz_len=3,
-    )
-    input_box10 = InputBox(
-        main_but_sizes[6] * 6,
-        100 + (main_but_sizes[9] + 5) * 3,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        f"ширина поля(max:{str(screen_size[0])})",
-        doz_len=5,
-    )
-    input_box11 = InputBox(
-        main_but_sizes[6] * 6,
-        100 + (main_but_sizes[9] + 5) * 4,
-        main_but_sizes[9],
-        main_but_sizes[8],
-        f"высота поля(max:{str(screen_size[1])})",
-        doz_len=4,
-    )
-    input_boxes = [
-        input_box4,
-        input_box1,
-        input_box2,
-        input_box3,
-        input_box5,
-        input_box6,
-        input_box7,
-        input_box8,
-        input_box9,
-        input_box10,
-        input_box11,
-    ]
-    d = button_images[1]
-    button = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1] + main_but_sizes[2] * 3),
-        ["сохранить"],
-        161,
-        lambda: set_player_level(input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=0,
-        animation_delay=1,
-    )
-    button1 = Button(
-        d,
-        (20, main_but_sizes[7]),
-        ["   3 из 10"],
-        161,
-        lambda: set_level(easy_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=8,
-        animation_delay=1,
-    )
-    button2 = Button(
-        d,
-        (20 + 300, main_but_sizes[7]),
-        ["   5 из 10"],
-        161,
-        lambda: set_level(normal_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=16,
-        animation_delay=1,
-    )
-    button3 = Button(
-        d,
-        (20 + 300 * 2, main_but_sizes[7]),
-        ["   7 из 10"],
-        161,
-        lambda: set_level(medium_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=24,
-        animation_delay=1,
-    )
-    button4 = Button(
-        d,
-        (20 + 300 * 3, main_but_sizes[7]),
-        ["   9 из 10"],
-        161,
-        lambda: set_level(hard_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=32,
-        animation_delay=1,
-    )
-    button5 = Button(
-        d,
-        (20 + 300 * 4, main_but_sizes[7]),
-        ["   11 из 10"],
-        161,
-        lambda: set_level(demon_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=40,
-        animation_delay=1,
-    )
-    button6 = Button(
-        d,
-        (20 + 300 * 4, main_but_sizes[6] * 6 + main_but_sizes[9] + 5),
-        ["     свой"],
-        161,
-        lambda: set_level(player_level, input_boxes),
-        sz=17,
-        font_size=44,
-        animate_ind=48,
-        animation_delay=1,
-    )
-    buttons_spr = pygame.sprite.Group()
-    setting_buttons = [button, button1, button2, button3, button4, button5, button6]
-    for button in setting_buttons:
-        buttons_spr.add(button)
+    # input_box1 = InputBox(100, 100, 25, 24, "шары") # x, y, w, h
+    # input_box2 = InputBox(
+    #     100,
+    #     100 + 30,
+    #     25,
+    #     24,
+    #     "анифиры",
+    # )
+    # input_box3 = InputBox(
+    #     100,
+    #     100 + 30 * 2,
+    #     25,
+    #     24,
+    #     "взрывные анифиры",
+    # )
+    # input_box4 = InputBox(
+    #     100,
+    #     100 + 30 * 3,
+    #     25,
+    #     24,
+    #     "ложные взрывы(+/-)",
+    #     doz="-+",
+    #     doz_len=1,
+    # )
+    # input_box5 = InputBox(
+    #     100,
+    #     100 + 30 * 4,
+    #     25,
+    #     24,
+    #     "цели",
+    # )
+    # input_box6 = InputBox(
+    #     100,
+    #     100 + 30 * 5,
+    #     25,
+    #     24,
+    #     "заряды",
+    # )
+    # input_box7 = InputBox(
+    #     100 * 6,
+    #     100,
+    #     25,
+    #     24,
+    #     "время раунда",
+    #     doz_len=3,
+    # )
+    # input_box8 = InputBox(
+    #     100 * 6,
+    #     100 + 30,
+    #     25,
+    #     24,
+    #     "скорость",
+    #     doz_len=3,
+    # )
+    # input_box9 = InputBox(
+    #     100 * 6,
+    #     100 + 30 * 2,
+    #     25,
+    #     24,
+    #     "коэффициент скорости",
+    #     doz_len=3,
+    # )
+    # input_box10 = InputBox(
+    #     100 * 6,
+    #     100 + 30 * 3,
+    #     25,
+    #     24,
+    #     f"ширина поля(max:{str(screen_size[0])})",
+    #     doz_len=5,
+    # )
+    # input_box11 = InputBox(
+    #     100 * 6,
+    #     100 + 30 * 4,
+    #     25,
+    #     24,
+    #     f"высота поля(max:{str(screen_size[1])})",
+    #     doz_len=4,
+    # )
+    # input_boxes = [
+    #     input_box4,
+    #     input_box1,
+    #     input_box2,
+    #     input_box3,
+    #     input_box5,
+    #     input_box6,
+    #     input_box7,
+    #     input_box8,
+    #     input_box9,
+    #     input_box10,
+    #     input_box11,
+    # ]
+    # button = Button(
+    #     d,
+    #     (570, 132 + 140 * 3),
+    #     ["сохранить"],
+    #     161,
+    #     lambda: set_player_level(input_boxes),
+    #     sz=17,
+    #     font_size=44,
+    #     animate_ind=0,
+    #     animation_delay=1,
+    # )
+
+    set_w_h_butt(*exit_button_angle_pos)
+
     done = True
+
     while done:
         screen.blit(back, back_rect)
         for event in pygame.event.get():
             done = event_test_exit(event)
-            for box in input_boxes:
-                box.handle_event(event)
-            if not done:
-                return
+            # for box in input_boxes:
+            #     box.handle_event(event)
             if event.type == pygame.MOUSEBUTTONDOWN:
-                for button in setting_buttons:
+                for button in level_setting_buttons:
                     if in_image(button, *event.pos):
                         button.clicked()
+                if in_image(level_back_button, *event.pos):
+                    done = False
             if event.type == pygame.MOUSEBUTTONUP:
-                for button in setting_buttons:
+                for button in level_setting_buttons:
                     if in_image(button, *event.pos):
                         button.target()
+            if not done:
+                return
         mouse_pos = pygame.mouse.get_pos()
-        for button in setting_buttons:
+        for button in level_setting_buttons:
             if in_image(button, *mouse_pos):
                 button.target()
             else:
                 button.target(0)
-        with suppress(Exception):
-            if int(input_box10.text) > screen_size[0] - 100:
-                input_box10.text = str(screen_size[0] - 100)
-            if int(input_box11.text) > screen_size[1] - 100:
-                input_box11.text = str(screen_size[1] - 100)
-        buttons_spr.update()
+        # with suppress(Exception):
+        #     if int(input_box10.text) > screen_size[0] - 100:
+        #         input_box10.text = str(screen_size[0] - 100)
+        #     if int(input_box11.text) > screen_size[1] - 100:
+        #         input_box11.text = str(screen_size[1] - 100)
+        level_buttons_spr.update()
         button_exit.update()
         decorations.update()
         decorations.draw(screen)
-        buttons_spr.draw(screen)
+        level_buttons_spr.draw(screen)
         button_exit.draw(screen)
-        for box in input_boxes:
-            box.update()
-        for box in input_boxes:
-            box.draw(screen)
+        # for box in input_boxes:
+        #     box.update()
+        # for box in input_boxes:
+        #     box.draw(screen)
         screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
         clock.tick(FPS)
@@ -1041,7 +1144,6 @@ def set_width_and_height(w, h):
 
 
 def set_w_h_butt(w, h):
-    h += 3
     exit_buttonQ.rect[0] = w
     exit_buttonQ.rect[1] = h
 
@@ -1059,7 +1161,12 @@ def help_volume():
     for i in range(int(volume * 10)):
         d = pygame.sprite.Sprite()
         d.image = music_image
-        d.rect = [475 + 60 * i, 80, 43, 25]
+        d.rect = [
+            (475 + 60 * i) / coefficients[0],
+            80 / coefficients[1],
+            43 / coefficients[0],
+            25 / coefficients[1],
+        ]
         music_volume_sprites.add(d)
 
 
@@ -1088,42 +1195,34 @@ def settings():
     alpha = 161
     running = True
     tick = pygame.time.Clock()
-    d = 2
+    button_image = button_images[2]
     buttons_spr = pygame.sprite.Group()
     button1 = Button(
-        d,
-        (main_but_sizes[0], main_but_sizes[1]),
-        ["      стиль"],
-        "BT_TEST.png",
+        button_image,
+        (main_button_x, main_button_start_y),
+        ["проект"],
         alpha,
         lambda: import_style(),
     )
     button3 = MiniButton(
-        (main_but_sizes[5], main_but_sizes[6] * 3 - 2),
+        (numbers_x["volume_control_minus_x"], numbers_y["volume_control_y"]),
         "materials/img/music_control/music_control_minus.png",
         alpha,
         lambda: turn_down_volume(),
     )
     button4 = MiniButton(
-        (main_but_sizes[4], main_but_sizes[6] * 3 - 2),
+        (numbers_x["volume_control_plus_x"], numbers_y["volume_control_y"]),
         "materials/img/music_control/music_control_plus.png",
         alpha,
         lambda: turn_up_volume(),
     )
     button2 = pygame.sprite.Sprite()
-    draw_text(
-        "materials/img/buttons/main_button.png",
-        ["      звук"],
-        54,
-        "materials/img/buttons/NewButton.png",
-        30,
-        30,
-    )
-    button2.image = pygame.image.load(
-        "materials/img/buttons/NewButton.png"
-    ).convert_alpha()
+    button2.image = draw_text(button_image, "звук", font_size_for_main_buttons)
     button2.rect = button2.image.get_rect()
-    button2.rect.x, button2.rect.y = main_but_sizes[0], main_but_sizes[3]
+    button2.rect.x, button2.rect.y = (
+        main_button_x,
+        main_button_start_y + main_button_step_y,
+    )
     button2_ = pygame.sprite.Group(button2)
     main_settings_buttons = [button1, button3, button4]
     for button in main_settings_buttons:
@@ -1176,7 +1275,6 @@ def set_style():
                 )
             )
         )
-    animated_figures_ids = [1, 5, 6, 7, 8, 9]
 
     for i in range(6):
         for j in range(2):
@@ -1202,7 +1300,9 @@ def set_style():
     for i in range(6):
         decorations.add(
             set_speed_for_decoration_object(
-                AnimatedFigure(figure_images[3].copy(), (0, screen_size[0]), (0, screen_size[1]))
+                AnimatedFigure(
+                    figure_images[3].copy(), (0, screen_size[0]), (0, screen_size[1])
+                )
             )
         )
     pass
@@ -1216,7 +1316,6 @@ def images_resize(dir, screen_size, attitudes_filename):
         final_image_size = list(map(lambda x: x * screen_size[0], resize_images[image]))
         final_image_size[0] = int(final_image_size[0]) + 1
         final_image_size[1] = int(final_image_size[1]) + 1
-        print(image, final_image_size)
         resized_image = pygame.image.load(dir + image).convert_alpha()
         resized_image = pygame.transform.scale(resized_image, final_image_size)
         images.append(resized_image)
@@ -1226,27 +1325,27 @@ def images_resize(dir, screen_size, attitudes_filename):
 if __name__ == "__main__":
     volume = 0
     level = 0
-    with open("materials/data/data.csv", encoding="utf8") as csv_file:
-        reader = csv.reader(csv_file, delimiter=";", quotechar='"')
-        for index, q in enumerate(reader):
-            if q[0] == "":
-                break
-            elif not index:
-                level = [int(i) for i in q]
-            elif index:
-                player_level = [int(i) for i in q[:-3]]
-                volume = float(q[-3])
-                global_speed = int(q[-2])
-                global_speed_factor = int(q[-1])
 
-    buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, speed, BLACK = (
+    with open("materials/data/informarion.json") as file:
+        information = json.load(file)
+
+    level = information["global_level"]
+    player_level = information["player_level"]
+    volume = information["volume"]
+    global_speed = information["global_speed"]
+    global_speed_factor = information["global_speed_factor"]
+    user_coins = information["coins"]
+    completed_achievements_ids = information["achievements_ids"]
+    first_blocked_level = information["blocked_level"]
+    last_quest_update_time = information["last_quest_update_time"]
+
+    buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, BLACK = (
         [],
         0,
         0,
         0,
         0,
         60,
-        6,
         (0, 0, 0),
     )
     speed_factor = 1
@@ -1265,11 +1364,43 @@ if __name__ == "__main__":
 
     active_monitor = get_monitors()[0]
     screen_size = (active_monitor.width, active_monitor.height)
+    print(screen_size)
 
     screen = pygame.display.set_mode(screen_size)
     pygame.display.set_caption("Eyesight Up Game", "materials/icon/active_exe_icon.png")
-    pygame.display.set_icon(pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha())
-    # pygame.mouse.set_visible(False)
+    pygame.display.set_icon(
+        pygame.image.load("materials/icon/active_exe_icon.png").convert_alpha()
+    )
+
+    coefficients = (1536 / screen_size[0], 864 / screen_size[1])
+
+    pixel_x = 1 / coefficients[0]
+    pixel_y = 1 / coefficients[1]
+
+    pixel_xy = 2 / (coefficients[0] + coefficients[1])
+    pixel_20xy = 2 / (coefficients[0] + coefficients[1])
+
+    with open("numbers.json", "r") as file:
+        numbers = json.load(file)
+
+    for i in numbers:
+        numbers[i] *= pixel_xy
+
+    with open("numbers_x.json", "r") as file:
+        numbers_x = json.load(file)
+
+    for i in numbers_x:
+        numbers_x[i] /= coefficients[0]
+
+    with open("numbers_y.json", "r") as file:
+        numbers_y = json.load(file)
+
+    for i in numbers_y:
+        numbers_y[i] /= coefficients[1]
+
+    speed = numbers["speed"]
+
+    pygame.mouse.set_visible(False)
 
     # ----------------------
     #     IMAGE RESIZING
@@ -1282,12 +1413,168 @@ if __name__ == "__main__":
     cur_dir = "materials/img/cursor/"
     sl_dir = "materials/img/slides/"
 
-    background_images = images_resize(bg_dir, screen_size, "materials/data/attitudes/background_attitudes.json")
-    button_images = images_resize(bt_dir, screen_size, "materials/data/attitudes/button_attitudes.json")
-    cursor_image = images_resize(cur_dir, screen_size, "materials/data/attitudes/cursor_attitude.json")
-    figure_images = images_resize(fg_dir, screen_size, "materials/data/attitudes/figure_attitudes.json")
-    music_control_images = images_resize(mc_dir, screen_size, "materials/data/attitudes/music_control_attitudes.json")
-    slides_images = images_resize(sl_dir, screen_size, "materials/data/attitudes/slide_attitudes.json")
+    background_images = images_resize(
+        bg_dir, screen_size, "materials/data/attitudes/background_attitudes.json"
+    )
+    button_images = images_resize(
+        bt_dir, screen_size, "materials/data/attitudes/button_attitudes.json"
+    )
+    cursor_image = [
+        pygame.image.load("materials/img/cursor/cursor.png").convert_alpha()
+    ]
+    figure_images = images_resize(
+        fg_dir, screen_size, "materials/data/attitudes/figure_attitudes.json"
+    )
+    music_control_images = images_resize(
+        mc_dir, screen_size, "materials/data/attitudes/music_control_attitudes.json"
+    )
+    slides_images = images_resize(
+        sl_dir, screen_size, "materials/data/attitudes/slide_attitudes.json"
+    )
+
+    # ----------------------
+    #    FONT CORRECTION
+    # ----------------------
+
+    font_size_for_main_buttons = int(54 / coefficients[1])
+    font_size = int(32 / coefficients[1])
+    FONT = pygame.font.Font("materials/data/font.ttf", font_size)
+
+    # ----------------------
+    #    POSITIONS CORRECTION
+    # ----------------------
+
+    main_button_x = screen_size[0] / 2 - button_images[2].get_width() / 2
+    main_button_start_y = screen_size[1] / 6.5
+    main_button_step_y = screen_size[1] / 6.2
+
+    # ----------------------
+    #    LEVEL SCREEN
+    # ----------------------
+
+    level_button1 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 - screen_size[0] / 6 - button_images[2].get_width() / 2,
+            screen_size[1] / 4 - button_images[2].get_height() / 2,
+        ),
+        ["новичек"],
+        161,
+        lambda: set_level(easy_level),
+        sz=17,
+        font_size=44,
+        animate_ind=8,
+        animation_delay=1,
+    )
+
+    level_button2 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 + screen_size[0] / 6 - button_images[2].get_width() / 2,
+            screen_size[1] / 4 - button_images[2].get_height() / 2,
+        ),
+        ["легкий"],
+        161,
+        lambda: set_level(normal_level),
+        sz=17,
+        font_size=44,
+        animate_ind=16,
+        animation_delay=1,
+    )
+    level_button3 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 + screen_size[0] / 3 - button_images[2].get_width() / 2,
+            screen_size[1] / 2 - button_images[2].get_height() / 2,
+        ),
+        ["средний"],
+        161,
+        lambda: set_level(medium_level),
+        sz=17,
+        font_size=44,
+        animate_ind=24,
+        animation_delay=1,
+    )
+    level_button4 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 + screen_size[0] / 6 - button_images[2].get_width() / 2,
+            screen_size[1] / 4 * 3 - button_images[2].get_height() / 2,
+        ),
+        ["сложный"],
+        161,
+        lambda: set_level(hard_level),
+        sz=17,
+        font_size=44,
+        animate_ind=32,
+        animation_delay=1,
+    )
+    level_button5 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 - screen_size[0] / 6 - button_images[2].get_width() / 2,
+            screen_size[1] / 4 * 3 - button_images[2].get_height() / 2,
+        ),
+        ["кошмар"],
+        161,
+        lambda: set_level(demon_level),
+        sz=17,
+        font_size=44,
+        animate_ind=40,
+        animation_delay=1,
+    )
+    level_button6 = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 - screen_size[0] / 3 - button_images[2].get_width() / 2,
+            screen_size[1] / 2 - button_images[2].get_height() / 2,
+        ),
+        ["свой"],
+        161,
+        lambda: set_level(player_level),
+        sz=17,
+        font_size=44,
+        animate_ind=48,
+        animation_delay=1,
+    )
+
+    level_back_button = Button(
+        button_images[2],
+        (
+            screen_size[0] / 2 - button_images[2].get_width() / 2,
+            screen_size[1] / 2 - button_images[2].get_height() / 2,
+        ),
+        ["назад"],
+        161,
+        lambda x: x / 0,
+        sz=17,
+        font_size=44,
+        animation_delay=1,
+    )
+
+    # if first_blocked_level < 2:
+    #     level_button1 =
+    #     level_button2 =
+    #     level_button3 =
+    #     level_button4 =
+    #     level_button5 =
+    #     level_button6 =
+    # if first_blocked_level == 2:
+    #
+    # else:
+
+    level_buttons_spr = pygame.sprite.Group()
+    level_setting_buttons = [
+        level_button1,
+        level_button2,
+        level_button3,
+        level_button4,
+        level_button5,
+        level_button6,
+        level_back_button,
+    ]
+    for button in level_setting_buttons:
+        level_buttons_spr.add(button)
 
     # ----------------------
 
@@ -1309,8 +1596,12 @@ if __name__ == "__main__":
     start_sound.set_volume(0.7)
     win_sound = pygame.mixer.Sound("materials/sounds/win_game_sound.ogg")
     lose_sound = pygame.mixer.Sound("materials/sounds/lose_game_sound.ogg")
-    incorrect_choice_sound = pygame.mixer.Sound("materials/sounds/incorrect_choice_sound.ogg")
-    correct_choice_sound = pygame.mixer.Sound("materials/sounds/correct_choice_sound.ogg")
+    incorrect_choice_sound = pygame.mixer.Sound(
+        "materials/sounds/incorrect_choice_sound.ogg"
+    )
+    correct_choice_sound = pygame.mixer.Sound(
+        "materials/sounds/correct_choice_sound.ogg"
+    )
     background_music = pygame.mixer.Sound("materials/sounds/background_music.ogg")
     game_music = pygame.mixer.Sound("materials/sounds/game_music2.ogg")
     game_music_list = (
@@ -1330,21 +1621,8 @@ if __name__ == "__main__":
 
     decorations = pygame.sprite.Group()
     set_volume()
-    FONT = pygame.font.Font("materials/data/font.ttf", 32)
-    coefficients = (1536 / screen_size[0], 864 / screen_size[1])
-    main_but_sizes = [
-        ret_size_x(570),
-        ret_size_y(132),
-        ret_size_y(140),
-        ret_size_y(272),
-        ret_size_y(1010),
-        ret_size_y(460),
-        ret_size_y(100),
-        ret_size_y(760),
-        ret_size_y(24),
-        ret_size_y(45),
-    ]
-    ex_size_ = ret_sizes(main_but_sizes[4], main_but_sizes[1])
+    ex_size_ = ret_sizes(1010, 132)
+    exit_button_angle_pos = ret_sizes(1481, 5)
     clock = pygame.time.Clock()
     set_style()
     back = background_images[0]
@@ -1358,13 +1636,25 @@ if __name__ == "__main__":
     demon = 5
     COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
     COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
-    FONT2 = pygame.font.Font("materials/data/font.ttf", main_but_sizes[8])
+    FONT2 = pygame.font.Font("materials/data/font.ttf", 24)
     global_timer = 0
-    easy_level = (1, 3, 3, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
-    normal_level = (2, 3, 2, 2, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
-    medium_level = (3, 3, 3, 3, 3, 2, 20, 2, 2, *ret_sizes(700, 720))
-    hard_level = (4, 3, 2, 5, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
-    demon_level = (5, 4, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
+    easy_level = (1, 3, 3, 0, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
+    normal_level = (2, 2, 2, 2, 1, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
+    medium_level = (3, 2, 3, 3, 2, 2, 2, 20, 2, 2, *ret_sizes(700, 720))
+    hard_level = (4, 2, 2, 4, 3, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
+    demon_level = (5, 2, 2, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
+    """difficulty,
+        not_rot_col,
+        rot_col,
+        spl_rot_col,
+        slime_col,
+        prime_col,
+        scale,
+        global_timer,
+        global_speed,
+        global_speed_factor,
+        (w),
+        h,"""
     global_level = level
     restart = False
     music_image = music_control_images[0]
@@ -1373,9 +1663,7 @@ if __name__ == "__main__":
     )
     button_exit = pygame.sprite.Group()
     button_exit.add(exit_buttonQ)
-    slides_list = [
-        f"materials/img/slides/{i}" for i in listdir("materials/img/slides")
-    ]
+    slides_list = [f"materials/img/slides/{i}" for i in listdir("materials/img/slides")]
     slide = None
     back_ind = -1
     background_slide_rectangle = back_rect
@@ -1384,17 +1672,19 @@ if __name__ == "__main__":
     help_volume()
 
     back1 = pygame.image.load(bg_dir + "flash_background.png").convert_alpha()
+
     main_run = True
 
     animation_steps = (0, 1, 1, 2, 2, 3, 4, 4)
     steps_count = len(animation_steps)
-    start_sound.play()
-    for i in range(255, 0, -5):
-        animated_background = back1.copy()
-        animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
-        screen.fill(BLACK)
-        screen.blit(animated_background, back_rect)
-        pygame.display.flip()
+    # start_sound.play()
+    # for i in range(255, 0, -5):
+    #     animated_background = back1.copy()
+    #     animated_background.fill((i, i, i), special_flags=pygame.BLEND_RGB_ADD)
+    #     screen.fill(BLACK)
+    #     screen.blit(animated_background, back_rect)
+    #     pygame.display.flip()
+
     while main_run:
         with suppress(Exception):
             main_menu()
@@ -1404,5 +1694,3 @@ if __name__ == "__main__":
         )
         writer.writerow([*global_level])
         writer.writerow([*player_level, volume, global_speed, global_speed_factor])
-    with suppress(Exception):
-        remove("""materials/img/buttons/NewButton.png""")

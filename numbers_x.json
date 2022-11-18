@@ -1,0 +1,14 @@
+{
+  "main_button_font_size": 54,
+  "input_box_width": 25,
+  "width_exit_button": 6,
+  "option_indent": 8,
+  "height_exit_button": 50,
+  "error_x": 30,
+  "volume_start_x": 475,
+  "volume_step": 60,
+  "volume_width": 43,
+  "volume_control_minus_x": 460,
+  "volume_control_plus_x": 1010,
+  "exit_button_start_x": 1481
+}

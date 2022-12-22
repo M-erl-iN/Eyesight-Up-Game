@@ -739,7 +739,7 @@ def cicle(board_w, board_h, x, y, speed_x, speed_y):
 
 
 def draw_text(image, text, font_size):
-    image_path = "test/drawing_text.png"
+    image_path = "materials/img/drawing_text.png"
     image_size = image.get_size()
     pygame.image.save(image, image_path)
 

@@ -1,1 +1,1 @@
-{"global_level": [4, 2, 2, 4, 3, 3, 3, 25, 3, 3, 1795, 955], "player_level": [4, 2, 3, 3, 2, 2, 2, 1, 2, 2, 875, 900], "volume": 0.5, "global_speed": 3, "global_speed_factor": 3, "coins": -1, "achievements_ids": [], "blocked_level": 6, "last_quest_update_time": 0}
+{"global_level": [4, 2, 2, 4, 3, 3, 3, 25, 3, 3, 1795, 955], "player_level": [4, 2, 3, 3, 2, 2, 2, 1, 2, 2, 875, 900], "volume": 0.5, "global_speed": 2, "global_speed_factor": 2, "coins": -1, "achievements_ids": [], "blocked_level": 6, "last_quest_update_time": 0}

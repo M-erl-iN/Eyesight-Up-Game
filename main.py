@@ -15,216 +15,6 @@ from screeninfo import get_monitors
 from materials.data.color_information import *
 
 
-class QuestTablet(pygame.sprite.Sprite):
-    def __init__(self):
-        super(QuestTablet, self).__init__()
-        self.quest_count = 12
-        self.font_size = 30
-        self.font = pygame.font.Font(
-            "materials/data/Mariupol-Medium.ttf", self.font_size
-        )
-        self.quest_image = pygame.image.load(
-            "materials/img/options/quest_.png"
-        ).convert_alpha()
-        self.matrix = self.generate_quest_matrix()
-        self.text_x = 70 + self.quest_image.get_width() + 5
-        self.reward_x = self.text_x + 300
-        self.reward_image_x = self.reward_x + 30
-        self.line_height = self.font_size + 28
-        self.rect = pygame.rect.Rect(
-            70, 170, 2000, self.line_height * self.quest_count + 170
-        )
-        self.rect_quest = None
-
-    def generate_quest(self):
-        return [
-            self.quest_image,
-            choice([0, 1, 2]),
-            *self.generate_reward(randrange(2, 25)),
-        ]
-
-    def generate_reward(self, i):
-        return i, i // 3 + 1
-
-    def generate_quest_matrix(self):
-        return [[self.generate_quest() for _ in range(self.quest_count)] for __ in range(3)]
-
-    def draw_matrix(self, screen):
-        for j in range(2, -1, -1):
-            reward = self.font.render(str(self.matrix[0][0][3]), True, (0, 0, 0))
-
-            self.rect_quest = [60 + j * (self.reward_image_x + 12) + reward.get_width() - 30,
-                    None,
-                    self.reward_image_x + reward.get_width() - 30,
-                    self.line_height - 5]
-            for i in range(len(self.matrix[0]) - 1, -1, -1):
-                elem = self.matrix[j][i]
-                y = (self.line_height + 5) * i + 170
-                if elem[1] == 0:
-                    text = f"Найди {elem[2]} целей"
-                elif elem[1] == 1:
-                    text = f"Потеряй {elem[2]} зарядов"
-                else:
-                    text = f"Заработай {elem[2]} монет"
-                text = self.font.render(text, True, (0, 0, 0))
-                reward = self.font.render(str(elem[3]), True, (0, 0, 0))
-
-                self.rect_quest[1] = y - self.line_height // 6
-
-                pygame.draw.rect(
-                    screen,
-                    (232, 255, 209),
-                    self.rect_quest
-                )
-                screen.blit(
-                    elem[0], (70 + j * (self.reward_image_x + 12) + reward.get_width() - 30, y)
-                )
-
-                screen.blit(
-                    text,
-                    (
-                        self.text_x + j * (self.reward_image_x + 12) + reward.get_width() - 30,
-                        y,
-                    ),
-                )
-
-                screen.blit(
-                    reward,
-                    (
-                        self.reward_x
-                        + j * (self.reward_image_x + 12)
-                        + reward.get_width()
-                        - 30,
-                        y,
-                    ),
-                )
-
-                screen.blit(
-                    options_images[1],
-                    (
-                        self.reward_image_x
-                        + j * (self.reward_image_x + 12)
-                        + reward.get_width()
-                        - 30,
-                        y,
-                    ),
-                )
-
-    def clicked(self, pos):
-        global quest
-        pos = pos[0] - self.rect_quest[0], pos[1] - self.rect_quest[1]
-        row = pos[1] // self.line_height
-        col = pos[0] // self.rect_quest[2]
-        if col > 2:
-            col = 2
-        if row > len(self.matrix[col]) - 1:
-            row = len(self.matrix[col]) - 1
-        font = pygame.font.Font(
-            "materials/data/Mariupol-Medium.ttf", 44
-        )
-        current_quest_img = font.render('!', True, (0, 128, 64))
-        print(col, row)
-        self.matrix[col][row][0] = current_quest_img
-        quest = Quest(self.matrix[col][row])
-
-
-class Quest:
-    def __init__(self, quest1):
-        global quest_flag
-        quest_flag = True
-        self.start_time = time.time()
-        self.arguments = quest1[1:]
-        self.life_time = time.time() - self.start_time
-
-    def update(self):
-        global quest, quest_flag, new_primes, new_coins, new_errors
-        self.life_time = time.time() - self.start_time
-        if self.life_time > 10:
-            del self
-        if self.arguments[0] == 0:
-            if new_primes >= self.arguments[1]:
-                user_coins += self.arguments[2]
-                quest_flag = False
-                quest = None
-                new_primes = 0
-        if self.arguments[0] == 1:
-            if new_coins >= self.arguments[1]:
-                user_coins += self.arguments[2]
-                quest_flag = False
-                quest = None
-                new_coins = 0
-        if self.arguments[0] == 2:
-            if new_errors >= self.arguments[1]:
-                user_coins += self.arguments[2]
-                quest_flag = False
-                quest = None
-                new_errors = 0
-
-
-class Coins(pygame.sprite.Sprite):
-    def __init__(self):
-        super(Coins, self).__init__()
-        self.image = options_images[1]
-        self.font_size = self.image.get_width()
-        self.counter = FONT.render(str(user_coins), True, (255, 255, 255))
-
-    def update(self):
-        self.counter = FONT.render(str(user_coins), True, (255, 255, 255))
-
-    def draw(self, screen):
-        screen.blit(self.counter, (80, 14))
-        screen.blit(self.image, (80 + self.counter.get_width(), 14))
-
-
-class BlockedObject(pygame.sprite.Sprite):
-    def __init__(
-        self, object_, image, cost, prompt, *function_arguments, function=None
-    ):
-        super(BlockedObject, self).__init__()
-        self.font_size = 21
-        self.func = function
-        self.arguments = function_arguments
-        if self.func is not None:
-            self.clicked = self.clicked2
-        else:
-            self.clicked = self.clicked1
-        FONT2 = pygame.font.Font("materials/data/UZSans-Medium.ttf", self.font_size)
-        self.prompt = FONT2.render(prompt, True, (255, 255, 255))
-        self.object = object_
-        self.rect = object_.image.get_rect()
-        self.rect.x = object_.rect.x
-        self.rect.y = object_.rect.y
-        self.cost = cost
-        self.image = (
-            object_.image
-        )  # get_currency_image(image, 5, pygame.image.load('coin.png').convert_alpha())
-        self.image.set_alpha(128)
-
-    def clicked1(self, figures):
-        global user_coins
-        if user_coins > self.cost:
-            user_coins -= self.cost
-            figures.add(self.object)
-            self.kill()
-
-    def clicked2(self, figures):
-        self.clicked1(figures)
-        self.func(*self.arguments)
-
-    def draw_prompt(self, canvas):
-        pos = (
-            self.rect.x + self.rect.width // 2 - self.prompt.get_width() // 2,
-            self.rect.y + self.rect.height + self.font_size,
-        )
-        canvas.blit(
-            self.prompt,
-            (
-                pos[0] + int(self.font_size / 5),
-                pos[1] - int(self.font_size / 5 * 4),
-            ),
-        )
-
-
 # Родительский класс для всех фигур
 class Figure(pygame.sprite.Sprite):
     def __init__(self, image, width=None, height=None):
@@ -638,7 +428,7 @@ class InputBox:
         self.doz_len = doz_len
         self.rect = pygame.Rect(x, y, w, h)
         self.rect2 = self.rect.copy()
-        self.rect2[1] += 7
+        self.rect2[1] += 12 / coefficients[0]
         self.color = COLOR_INACTIVE
         self.parameter = FONT2.render(parameter, True, COLOR_ACTIVE)
         self.par_x = self.parameter.get_size()[0] + 24
@@ -908,7 +698,7 @@ def main_menu():
         (main_button_x, main_button_start_y),
         ["играть"],
         alpha,
-        lambda: game(),
+        game,
         animation_delay=1,
     )
     button2 = Button(
@@ -916,20 +706,11 @@ def main_menu():
         (main_button_x, main_button_start_y + main_button_step_y),
         ["уровень"],
         alpha,
-        lambda: level_settings(),
+        level_settings,
         animate_ind=8,
         animation_delay=1,
     )
-    button3 = Button(
-        button_images[1],
-        (main_button_x, main_button_start_y + main_button_step_y * 2),
-        ["задания"],
-        alpha,
-        quests,
-        animate_ind=16,
-        animation_delay=1,
-    )
-    main_buttons = [button1, button2, button3]
+    main_buttons = [button1, button2]
     for button in main_buttons:
         buttons_spr.add(button)
     while running:
@@ -940,6 +721,10 @@ def main_menu():
                 global main_run
                 main_run = False
                 return
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    if not game_started:
+                        game()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 for button in main_buttons:
                     if in_image(button, *event.pos):
@@ -968,7 +753,6 @@ def main_menu():
         buttons_spr.update()
         button_exit.update()
         decorations.update()
-        coins.update()
         options_sprites.update()
         background_music.play()
         screen.blit(back, back_rect)
@@ -976,13 +760,13 @@ def main_menu():
         buttons_spr.draw(screen)
         button_exit.draw(screen)
         options_sprites.draw(screen)
-        coins.draw(screen)
         screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
     pygame.quit()
 
 
 def start_game(list__):
+    game_started = True
     global restart
     list_ = list__.copy()
     spr_start = pygame.sprite.Group()
@@ -1002,13 +786,11 @@ def start_game(list__):
             run = event_test_exit(event)
             if not run:
                 return False
-        coins.update()
         screen.blit(back, back_rect)
         button_exit.draw(screen)
         game_process_sprites.draw(screen)
         spr_start.draw(screen)
         errors_col_sprites.draw(screen)
-        coins.draw(screen)
         screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
     spr_start.clear(screen, back)
@@ -1018,8 +800,8 @@ def start_game(list__):
     return True
 
 
-def finish_game(false, coins_rewind):
-    global restart, user_coins, new_errors, new_primes, new_coins
+def finish_game(false):
+    global restart
     im = figure_images[4].copy()
     im.set_colorkey(BLACK)
     im_size = im.get_size()
@@ -1049,8 +831,6 @@ def finish_game(false, coins_rewind):
                     for i in list(game_process_sprites):
                         if in_image(i, x, y):
                             if i.became_prime:
-                                if quest_flag:
-                                    new_primes += 1
                                 true_clicks += 1
                                 correct_choice_sound.play()
                                 i.image = im
@@ -1061,8 +841,6 @@ def finish_game(false, coins_rewind):
                                 incorrect_choice_sound.play()
                                 errors_energy[-1].kill()
                                 errors_energy = errors_energy[:-1]
-                                if quest_flag:
-                                    new_errors += 1
                                 i.kill()
                             break
             if false_clicks == false:
@@ -1076,17 +854,13 @@ def finish_game(false, coins_rewind):
                 time.sleep(0.25)
                 game_music.stop()
                 win_sound.play()
-                user_coins += coins_rewind
-                if quest_flag:
-                    new_coins += coins_rewind
                 break
-        coins.update()
         button_exit.draw(screen)
         game_process_sprites.draw(screen)
         errors_col_sprites.draw(screen)
-        coins.draw(screen)
         screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
+    game_started = False
 
 
 def game():
@@ -1105,8 +879,7 @@ def game():
         global_speed,
         global_speed_factor,
         (w),
-        h,
-        coins_rewind,
+        h
     ) = global_level
     set_width_and_height(w, h)
     set_w_h_butt(
@@ -1194,22 +967,19 @@ def game():
                 if fps1 < FPS:
                     fps1 += 2
                 game_process_sprites.update()
-                coins.update()
                 screen.blit(back, back_rect)
                 game_process_sprites.draw(screen)
                 errors_col_sprites.draw(screen)
                 button_exit.update()
                 button_exit.draw(screen)
-                coins.draw(screen)
                 screen.blit(cursor, (pygame.mouse.get_pos()))
                 pygame.display.flip()
             elif not game_finished:
-                finish_game(scale, coins_rewind)
+                finish_game(scale)
                 break
         if restart:
             game_music.stop()
             restart = False
-            starting = False
             game()
     game_music.stop()
     set_w_h_butt(*ex_size_)
@@ -1274,7 +1044,7 @@ def slide_show():
         global_speed = 2
         global_speed_factor = 2
         gl1 = global_level
-        global_level = (1, 2, 2, 0, 1, 1, 40, 10, 2, 2, *ret_sizes(480, 600), 0)
+        global_level = (1, 2, 2, 0, 1, 1, 40, 10, 2, 2, *ret_sizes(480, 600))
         game()
         global_level = gl1
         back_ind = -1
@@ -1290,9 +1060,12 @@ def slide_back():
     slide = slides_images[back_ind]
 
 
-def set_level(level_for_set):
+def set_level(level_for_set, boxes):
     global global_level
     global_level = level_for_set
+    boxes[0].text = "-" if global_level[0] < medium else "+"
+    for i in range(1, len(boxes)):
+        boxes[i].text = str(global_level[i])
 
 
 def get_player_level(boxes):
@@ -1308,174 +1081,341 @@ def set_player_level(boxes):
     with suppress(Exception):
         player_current_level = player_level.copy()
         player_current_level[0] = normal if boxes[0].text == "-" else hard
-        for i in range(1, len(player_level)):
+        for i in range(1, len(boxes)):
             player_current_level[i] = int(boxes[i].text)
-        set_level(player_current_level)
+        set_level(player_current_level, boxes)
         player_level = player_current_level
 
 
 def level_settings():
     global decorations
-    # input_box1 = InputBox(100, 100, 25, 24, "шары") # x, y, w, h
-    # input_box2 = InputBox(
-    #     100,
-    #     100 + 30,
-    #     25,
-    #     24,
-    #     "анифиры",
-    # )
-    # input_box3 = InputBox(
-    #     100,
-    #     100 + 30 * 2,
-    #     25,
-    #     24,
-    #     "взрывные анифиры",
-    # )
-    # input_box4 = InputBox(
-    #     100,
-    #     100 + 30 * 3,
-    #     25,
-    #     24,
-    #     "ложные взрывы(+/-)",
-    #     doz="-+",
-    #     doz_len=1,
-    # )
-    # input_box5 = InputBox(
-    #     100,
-    #     100 + 30 * 4,
-    #     25,
-    #     24,
-    #     "цели",
-    # )
-    # input_box6 = InputBox(
-    #     100,
-    #     100 + 30 * 5,
-    #     25,
-    #     24,
-    #     "заряды",
-    # )
-    # input_box7 = InputBox(
-    #     100 * 6,
-    #     100,
-    #     25,
-    #     24,
-    #     "время раунда",
-    #     doz_len=3,
-    # )
-    # input_box8 = InputBox(
-    #     100 * 6,
-    #     100 + 30,
-    #     25,
-    #     24,
-    #     "скорость",
-    #     doz_len=3,
-    # )
-    # input_box9 = InputBox(
-    #     100 * 6,
-    #     100 + 30 * 2,
-    #     25,
-    #     24,
-    #     "коэффициент скорости",
-    #     doz_len=3,
-    # )
-    # input_box10 = InputBox(
-    #     100 * 6,
-    #     100 + 30 * 3,
-    #     25,
-    #     24,
-    #     f"ширина поля(max:{str(screen_size[0])})",
-    #     doz_len=5,
-    # )
-    # input_box11 = InputBox(
-    #     100 * 6,
-    #     100 + 30 * 4,
-    #     25,
-    #     24,
-    #     f"высота поля(max:{str(screen_size[1])})",
-    #     doz_len=4,
-    # )
-    # input_boxes = [
-    #     input_box4,
-    #     input_box1,
-    #     input_box2,
-    #     input_box3,
-    #     input_box5,
-    #     input_box6,
-    #     input_box7,
-    #     input_box8,
-    #     input_box9,
-    #     input_box10,
-    #     input_box11,
-    # ]
-    # button = Button(
-    #     d,
-    #     (570, 132 + 140 * 3),
-    #     ["сохранить"],
-    #     161,
-    #     lambda: set_player_level(input_boxes),
-    #     sz=17,
-    #     font_size=44,
-    #     animate_ind=0,
-    #     animation_delay=1,
-    # )
-
-    set_w_h_butt(*exit_button_angle_pos)
-
+    input_boxes_pozitions = (
+        (
+            100 / coefficients[0],
+            100 / coefficients[1]
+        ),
+        (
+            100 / coefficients[0],
+            150 / coefficients[1]
+        ),
+        (
+            100 / coefficients[0],
+            200 / coefficients[1]
+        ),
+        (
+            100 / coefficients[0],
+            250 / coefficients[1]
+        ),
+        (
+            100 / coefficients[0],
+            300 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            100 / coefficients[1]
+        ),
+        (
+            100 / coefficients[0],
+            350 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            150 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            200 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            250 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            300 / coefficients[1]
+        ),
+        (
+            600 / coefficients[0],
+            350 / coefficients[1]
+        )
+    )
+    input_box_size = (60 / coefficients[0], 35 / coefficients[1])
+    input_box1 = InputBox(*input_boxes_pozitions[0], *input_box_size, "шары")
+    input_box2 = InputBox(
+        *input_boxes_pozitions[1],
+        *input_box_size,
+        "анифиры",
+    )
+    input_gravity = InputBox(
+        *input_boxes_pozitions[2],
+        *input_box_size,
+        "гравишары",
+    )
+    input_box3 = InputBox(
+        *input_boxes_pozitions[3],
+        *input_box_size,
+        "взрывные анифиры",
+    )
+    input_box4 = InputBox(
+        *input_boxes_pozitions[4],
+        *input_box_size,
+        "ложные взрывы(+/-)",
+        doz="-+",
+        doz_len=1,
+    )
+    input_box5 = InputBox(
+        *input_boxes_pozitions[5],
+        *input_box_size,
+        "цели",
+    )
+    input_box6 = InputBox(
+        *input_boxes_pozitions[6],
+        *input_box_size,
+        "заряды",
+    )
+    input_box7 = InputBox(
+        *input_boxes_pozitions[7],
+        *input_box_size,
+        "время раунда",
+        doz_len=3,
+    )
+    input_box8 = InputBox(
+        *input_boxes_pozitions[8],
+        *input_box_size,
+        "скорость",
+        doz_len=3,
+    )
+    input_box9 = InputBox(
+        *input_boxes_pozitions[9],
+        *input_box_size,
+        "коэффициент скорости",
+        doz_len=3,
+    )
+    input_box10 = InputBox(
+        *input_boxes_pozitions[10],
+        *input_box_size,
+        f"ширина поля(max:{str(screen_size[0])})",
+        doz_len=5,
+    )
+    input_box11 = InputBox(
+        *input_boxes_pozitions[11],
+        *input_box_size,
+        f"высота поля(max:{str(screen_size[1])})",
+        doz_len=4,
+    )
+    input_boxes = [
+        input_box4,
+        input_box1,
+        input_box2,
+        input_box3,
+        input_gravity,
+        input_box5,
+        input_box6,
+        input_box7,
+        input_box8,
+        input_box9,
+        input_box10,
+        input_box11,
+    ]
+    d = button_images[-1]
+    button_pozitions = (
+        (
+            570 / coefficients[0],
+            600 / coefficients[1]
+        ),
+        (
+            0 / coefficients[0],
+            760 / coefficients[1]
+        ),
+        (
+            305 / coefficients[0],
+            760 / coefficients[1]
+        ),
+        (
+            610 / coefficients[0],
+            760 / coefficients[1]
+        ),
+        (
+            915 / coefficients[0],
+            760 / coefficients[1]
+        ),
+        (
+            1220 / coefficients[0],
+            760 / coefficients[1]
+        ),
+        (
+            1220 / coefficients[0],
+            650 / coefficients[1]
+        )
+    )
+    button = Button(
+        d,
+        button_pozitions[0],
+        ["сохранить"],
+        161,
+        lambda: set_player_level(input_boxes),
+        sz=17,
+        font_size=44,
+        animate_ind=0,
+        animation_delay=1,
+    )
+    button1 = Button(
+        d,
+        button_pozitions[1],
+        [" 3 из 10"],
+        161,
+        lambda: set_level(easy_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=8,
+        animation_delay=1,
+    )
+    button2 = Button(
+        d,
+        button_pozitions[2],
+        [" 5 из 10"],
+        161,
+        lambda: set_level(normal_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=16,
+        animation_delay=1,
+    )
+    button3 = Button(
+        d,
+        button_pozitions[3],
+        [" 7 из 10"],
+        161,
+        lambda: set_level(medium_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=24,
+        animation_delay=1,
+    )
+    button4 = Button(
+        d,
+        button_pozitions[4],
+        [" 9 из 10"],
+        161,
+        lambda: set_level(hard_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=32,
+        animation_delay=1,
+    )
+    button5 = Button(
+        d,
+        button_pozitions[5],
+        [" 11 из 10"],
+        161,
+        lambda: set_level(demon_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=40,
+        animation_delay=1,
+    )
+    button6 = Button(
+        d,
+        button_pozitions[6],
+        [" свой"],
+        161,
+        lambda: set_level(player_level, input_boxes),
+        sz=17,
+        font_size=34,
+        animate_ind=48,
+        animation_delay=1,
+    )
+    buttons_spr = pygame.sprite.Group()
+    setting_buttons = [button, button1, button2, button3, button4, button5, button6]
+    for button in setting_buttons:
+        buttons_spr.add(button)
     done = True
-
     while done:
         screen.blit(back, back_rect)
         for event in pygame.event.get():
             done = event_test_exit(event)
-            # for box in input_boxes:
-            #     box.handle_event(event)
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                for button in list(level_setting_buttons):
-                    if in_image(button, *event.pos):
-                        button.clicked()
-                for button in list(level_setting_blocked_buttons):
-                    if in_image(button, *event.pos):
-                        button.clicked(level_setting_buttons)
-                if in_image(level_back_button, *event.pos):
-                    done = False
-            if event.type == pygame.MOUSEBUTTONUP:
-                for button in level_setting_buttons:
-                    if in_image(button, *event.pos):
-                        button.target()
+            for box in input_boxes:
+                box.handle_event(event)
             if not done:
                 return
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                for button in setting_buttons:
+                    if in_image(button, *event.pos):
+                        button.clicked()
+            if event.type == pygame.MOUSEBUTTONUP:
+                for button in setting_buttons:
+                    if in_image(button, *event.pos):
+                        button.target()
         mouse_pos = pygame.mouse.get_pos()
-        for button in level_setting_buttons:
+        for button in setting_buttons:
             if in_image(button, *mouse_pos):
                 button.target()
             else:
                 button.target(0)
-        # with suppress(Exception):
-        #     if int(input_box10.text) > screen_size[0] - 100:
-        #         input_box10.text = str(screen_size[0] - 100)
-        #     if int(input_box11.text) > screen_size[1] - 100:
-        #         input_box11.text = str(screen_size[1] - 100)
-
-        coins.update()
-        level_setting_buttons.update()
-        level_setting_blocked_buttons.update()
+        with suppress(Exception):
+            if int(input_box10.text) > screen_size[0] - 100:
+                input_box10.text = str(screen_size[0] - 100)
+            if int(input_box11.text) > screen_size[1] - 100:
+                input_box11.text = str(screen_size[1] - 100)
+        buttons_spr.update()
         button_exit.update()
         decorations.update()
         decorations.draw(screen)
-        level_setting_buttons.draw(screen)
-        level_setting_blocked_buttons.draw(screen)
+        buttons_spr.draw(screen)
         button_exit.draw(screen)
-        # for box in input_boxes:
-        #     box.update()
-        # for box in input_boxes:
-        #     box.draw(screen)
-        for i in list(level_setting_blocked_buttons):
-            i.draw_prompt(screen)
-
-        coins.draw(screen)
+        for box in input_boxes:
+            box.update()
+        for box in input_boxes:
+            box.draw(screen)
         screen.blit(cursor, (pygame.mouse.get_pos()))
         pygame.display.flip()
         clock.tick(FPS)
+    # global decorations
+    #
+    # set_w_h_butt(*exit_button_angle_pos)
+    #
+    # done = True
+    #
+    # while done:
+    #     screen.blit(back, back_rect)
+    #     for event in pygame.event.get():
+    #         done = event_test_exit(event)
+    #         if event.type == pygame.MOUSEBUTTONDOWN:
+    #             for button in list(level_setting_buttons):
+    #                 if in_image(button, *event.pos):
+    #                     button.clicked()
+    #             for button in list(level_setting_blocked_buttons):
+    #                 if in_image(button, *event.pos):
+    #                     button.clicked(level_setting_buttons)
+    #             if in_image(level_back_button, *event.pos):
+    #                 done = False
+    #         if event.type == pygame.MOUSEBUTTONUP:
+    #             for button in level_setting_buttons:
+    #                 if in_image(button, *event.pos):
+    #                     button.target()
+    #         if not done:
+    #             return
+    #     mouse_pos = pygame.mouse.get_pos()
+    #     for button in level_setting_buttons:
+    #         if in_image(button, *mouse_pos):
+    #             button.target()
+    #         else:
+    #             button.target(0)
+    #
+    #     level_setting_buttons.update()
+    #     level_setting_blocked_buttons.update()
+    #     button_exit.update()
+    #     decorations.update()
+    #     decorations.draw(screen)
+    #     level_setting_buttons.draw(screen)
+    #     level_setting_blocked_buttons.draw(screen)
+    #     button_exit.draw(screen)
+    #     for i in list(level_setting_blocked_buttons):
+    #         i.draw_prompt(screen)
+    #
+    #     screen.blit(cursor, (pygame.mouse.get_pos()))
+    #     pygame.display.flip()
+    #     clock.tick(FPS)
 
 
 def set_width_and_height(w, h):
@@ -1531,38 +1471,6 @@ def turn_down_volume():
 
 def import_style():
     open_site("https://sites.google.com/view/eyesight-up-game", new=0)
-
-
-def quests():
-    set_width_and_height(*ret_sizes(700, 520))
-    set_w_h_butt(
-        WIDTH_D - numbers_x["width_exit_button"],
-        HEIGHT_U - numbers_y["height_exit_button"],
-    )
-    running = True
-    tick = pygame.time.Clock()
-    quest_board = QuestTablet()
-    while running:
-        tick.tick(FPS)
-        for event in pygame.event.get():
-            running = event_test_exit(event)
-            if not running:
-                return
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if in_coordinates_rect(quest_board.rect, *event.pos):
-                    quest_board.clicked(event.pos)
-        coins.update()
-        button_exit.update()
-        decorations.update()
-        background_music.play()
-        screen.blit(back, back_rect)
-        decorations.draw(screen)
-        quest_board.draw_matrix(screen)
-        button_exit.draw(screen)
-        coins.draw(screen)
-        screen.blit(cursor, (pygame.mouse.get_pos()))
-        pygame.display.flip()
-    pygame.quit()
 
 
 def settings():
@@ -1716,10 +1624,8 @@ if __name__ == "__main__":
     volume = information["volume"]
     global_speed = information["global_speed"]
     global_speed_factor = information["global_speed_factor"]
-    user_coins = information["coins"]
     completed_achievements_ids = information["achievements_ids"]
     first_blocked_level = information["blocked_level"]
-    last_quest_update_time = information["last_quest_update_time"]
 
     buttons, WIDTH_D, HEIGHT_D, WIDTH_U, HEIGHT_U, FPS, BLACK = (
         [],
@@ -1746,7 +1652,6 @@ if __name__ == "__main__":
 
     active_monitor = get_monitors()[0]
     screen_size = (active_monitor.width, active_monitor.height)
-    print(screen_size)
 
     screen = pygame.display.set_mode(screen_size)
     pygame.display.set_caption("Eyesight Up Game", "materials/icon/active_exe_icon.png")
@@ -1762,19 +1667,19 @@ if __name__ == "__main__":
     pixel_xy = 2 / (coefficients[0] + coefficients[1])
     pixel_20xy = 2 / (coefficients[0] + coefficients[1])
 
-    with open("numbers.json", "r") as file:
+    with open("materials/data/numbers.json", "r") as file:
         numbers = json.load(file)
 
     for i in numbers:
         numbers[i] *= pixel_xy
 
-    with open("numbers_x.json", "r") as file:
+    with open("materials/data/numbers_x.json", "r") as file:
         numbers_x = json.load(file)
 
     for i in numbers_x:
         numbers_x[i] /= coefficients[0]
 
-    with open("numbers_y.json", "r") as file:
+    with open("materials/data/numbers_y.json", "r") as file:
         numbers_y = json.load(file)
 
     for i in numbers_y:
@@ -1822,20 +1727,9 @@ if __name__ == "__main__":
     #    FONT CORRECTION
     # ----------------------
 
-    new_primes = 0
-    new_coins = 0
-    new_errors = 0
-    quest_flag = False
-    quest = None
-
-    # ----------------------
-    #    FONT CORRECTION
-    # ----------------------
-
     font_size_for_main_buttons = int(54 / coefficients[1])
     font_size = int(32 / coefficients[1])
     FONT = pygame.font.Font("materials/data/UZSans-Medium.ttf", font_size)
-    print(coefficients)
 
     # ----------------------
     #    POSITIONS CORRECTION
@@ -1858,7 +1752,6 @@ if __name__ == "__main__":
         training,
     )
 
-    coins = Coins()
 
     options_sprites = pygame.sprite.Group()
     options_sprites.add(setting_button)
@@ -1969,85 +1862,6 @@ if __name__ == "__main__":
     )
 
     level_setting_buttons = pygame.sprite.Group(level_button1, level_back_button)
-    level_setting_blocked_buttons = pygame.sprite.Group()
-
-    if first_blocked_level < 6:
-        level_button6 = BlockedObject(
-            level_button6,
-            button_images[1],
-            2000,
-            "20 ДОСТИЖЕНИЙ",
-            6,
-            function=set_first_blocked_level,
-        )
-        if first_blocked_level == 5:
-            level_setting_blocked_buttons.add(level_button6)
-    elif first_blocked_level > 5:
-        level_setting_buttons.add(level_button6)
-
-    if first_blocked_level < 5:
-        level_button5 = BlockedObject(
-            level_button5,
-            button_images[1],
-            200,
-            "200 МОНЕТ И 10 ДОСТИЖЕНИЙ",
-            5,
-            level_setting_blocked_buttons,
-            level_button6,
-            function=set_first_blocked_level,
-        )
-        if first_blocked_level == 4:
-            level_setting_blocked_buttons.add(level_button5)
-    elif first_blocked_level > 4:
-        level_setting_buttons.add(level_button5)
-
-    if first_blocked_level < 4:
-        level_button4 = BlockedObject(
-            level_button4,
-            button_images[1],
-            100,
-            "100 МОНЕТ И 5 ДОСТИЖЕНИЙ",
-            4,
-            level_setting_blocked_buttons,
-            level_button5,
-            function=set_first_blocked_level,
-        )
-        if first_blocked_level == 3:
-            level_setting_blocked_buttons.add(level_button4)
-    elif first_blocked_level > 3:
-        level_setting_buttons.add(level_button4)
-
-    if first_blocked_level < 3:
-        level_button3 = BlockedObject(
-            level_button3,
-            button_images[1],
-            45,
-            "45 МОНЕТ И 3 ДОСТИЖЕНИЙ",
-            3,
-            level_setting_blocked_buttons,
-            level_button4,
-            function=set_first_blocked_level,
-        )
-        if first_blocked_level == 2:
-            level_setting_blocked_buttons.add(level_button3)
-    elif first_blocked_level > 2:
-        level_setting_buttons.add(level_button3)
-
-    if first_blocked_level < 2:
-        level_button2 = BlockedObject(
-            level_button2,
-            button_images[1],
-            10,
-            "10 МОНЕТ И 1 ДОСТИЖЕНИЕ",
-            2,
-            level_setting_blocked_buttons,
-            level_button3,
-            function=set_first_blocked_level,
-        )
-        if first_blocked_level == 1:
-            level_setting_blocked_buttons.add(level_button2)
-    elif first_blocked_level > 1:
-        level_setting_buttons.add(level_button2)
 
     # ----------------------
 
@@ -2112,13 +1926,13 @@ if __name__ == "__main__":
     demon = 5
     COLOR_ACTIVE = pygame.Color(COLOR_ACTIVE_MAIN)
     COLOR_INACTIVE = pygame.Color(COLOR_INACTIVE_MAIN)
-    FONT2 = pygame.font.Font("materials/data/font.ttf", 24)
+    FONT2 = pygame.font.Font("materials/data/Mariupol-Medium.ttf", int(40 / coefficients[0]))
     global_timer = 0
-    easy_level = (1, 3, 3, 0, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600), 1)
-    normal_level = (2, 2, 2, 2, 1, 2, 2, 15, 2, 2, *ret_sizes(700, 720), 3)
-    medium_level = (3, 2, 3, 3, 2, 2, 2, 20, 2, 2, *ret_sizes(700, 720), 5)
-    hard_level = (4, 2, 2, 4, 3, 3, 3, 25, 3, 3, *ret_sizes(1436, 764), 10)
-    demon_level = (5, 2, 2, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764), 40)
+    easy_level = (1, 3, 3, 0, 0, 2, 1, 10, 2, 2, *ret_sizes(480, 600))
+    normal_level = (2, 2, 2, 2, 1, 2, 2, 15, 2, 2, *ret_sizes(700, 720))
+    medium_level = (3, 2, 3, 3, 2, 2, 2, 20, 2, 2, *ret_sizes(700, 720))
+    hard_level = (4, 2, 2, 4, 3, 3, 3, 25, 3, 3, *ret_sizes(1436, 764))
+    demon_level = (5, 2, 2, 4, 4, 4, 0, 30, 4, 4, *ret_sizes(1436, 764))
     """difficulty,
         not_rot_col,
         rot_col,
@@ -2130,8 +1944,7 @@ if __name__ == "__main__":
         global_speed,
         global_speed_factor,
         (w),
-        h,
-        coins"""
+        h"""
     global_level = level
     restart = False
     music_image = music_control_images[0]
@@ -2159,20 +1972,19 @@ if __name__ == "__main__":
     #     screen.fill(BLACK)
     #     screen.blit(animated_background, back_rect)
     #     pygame.display.flip()
-
+    game_started = False
     while main_run:
         with suppress(Exception):
             main_menu()
+    # main_menu()
 
     information["global_level"] = global_level
     information["player_level"] = player_level
     information["volume"] = volume
     information["global_speed"] = global_speed
     information["global_speed_factor"] = global_speed_factor
-    information["coins"] = user_coins
     information["achievements_ids"] = completed_achievements_ids
     information["blocked_level"] = first_blocked_level
-    information["last_quest_update_time"] = last_quest_update_time
 
     with open("materials/data/informarion.json", "w") as file:
         json.dump(information, file)
